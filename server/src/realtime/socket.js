@@ -1,0 +1,65 @@
+'use strict';
+const { Server } = require('socket.io');
+const config = require('../config');
+const { resolveSession } = require('../middleware/auth');
+const { resolveToken } = require('../modules/tracking/links');
+const { publicView } = require('../modules/tracking/service');
+const hub = require('./hub');
+
+function parseCookies(header) {
+  const out = {};
+  for (const part of String(header || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+  }
+  return out;
+}
+
+/**
+ * Tiempo real con Socket.IO.
+ * - Sesiones autenticadas (cookie) se unen a sus salas según rol.
+ * - El seguimiento público se une con el token privado; el servidor lo valida
+ *   y solo suscribe a la sala de ese pedido.
+ */
+function attachRealtime(httpServer) {
+  const io = new Server(httpServer, {
+    cors: config.corsOrigins.length ? { origin: config.corsOrigins, credentials: true } : undefined,
+    serveClient: false,
+  });
+
+  io.use(async (socket, next) => {
+    try {
+      const cookies = parseCookies(socket.handshake.headers.cookie);
+      const token = socket.handshake.auth?.token || cookies[config.auth.cookieName];
+      socket.data.user = await resolveSession(token);
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  io.on('connection', (socket) => {
+    const user = socket.data.user;
+    if (user) {
+      socket.join(`user:${user.id}`);
+      if (user.isStaff) socket.join('staff');
+      if (user.role === 'courier' && user.courierId) socket.join(`courier:${user.courierId}`);
+    }
+
+    socket.on('track:join', async (payload, ack) => {
+      try {
+        const found = await resolveToken(payload?.token);
+        if (!found) return ack?.({ ok: false, error: 'Enlace no válido o vencido.' });
+        socket.join(`track:${found.order.id}`);
+        ack?.({ ok: true, view: await publicView(found.order) });
+      } catch {
+        ack?.({ ok: false, error: 'Error de conexión.' });
+      }
+    });
+  });
+
+  hub.setIO(io);
+  return io;
+}
+
+module.exports = { attachRealtime };
