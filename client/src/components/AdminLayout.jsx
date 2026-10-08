@@ -5,6 +5,8 @@ import { Avatar, OnlineIndicator } from './ui';
 import OutcomeToasts from './OutcomeToasts';
 import { InstallBanner } from './pwa';
 import { can, useApp } from '../context/AppContext';
+import { useEffect, useRef } from 'react';
+import { watchResponsiveTables } from '../lib/responsiveTables';
 
 const NAV = [
   { section: 'Operación' },
@@ -25,6 +27,9 @@ const NAV = [
 ];
 
 export default function AdminLayout() {
+  const mainRef = useRef(null);
+  // En el teléfono las tablas se ven como tarjetas: cada celda lleva el nombre de su columna.
+  useEffect(() => watchResponsiveTables(mainRef.current), []);
   const { user, logout, config, isDark, toggleTheme } = useApp();
   const location = useLocation();
   const items = NAV.filter((n) => n.section || can(user, n.perm));
@@ -75,7 +80,7 @@ export default function AdminLayout() {
           </button>
           <NotificationBell />
         </header>
-        <main className="content">
+        <main className="content" ref={mainRef}>
           <div style={{ marginBottom: 12 }}>
             <InstallBanner storageKey="lrd_install_admin" />
           </div>
