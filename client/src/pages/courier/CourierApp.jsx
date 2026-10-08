@@ -9,6 +9,7 @@ import SignaturePad, { compressImage } from '../../components/SignaturePad';
 import { InstallBanner, PushButton } from '../../components/pwa';
 import Icon from '../../components/Icon';
 import ShareDialog from '../../components/ShareDialog';
+import { ItemsEditor } from '../admin/Inventory';
 import { useApp } from '../../context/AppContext';
 import { useTracker, useWakeLock } from './useTracker';
 
@@ -215,6 +216,11 @@ function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onS
         <div><span className="muted">Pago:</span> {PAYMENT_METHODS[order.payment_method]}</div>
         {distanceM != null && <div><span className="muted">Distancia:</span> {fmtDistance(distanceM)}</div>}
       </div>
+      {order.items?.length > 0 && (
+        <div className="small" style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '6px 10px' }}>
+          <strong>Productos:</strong> {order.items.map((i) => `${i.quantity} × ${i.name}`).join(' · ')}
+        </div>
+      )}
       {order.notes && <div className="alert alert-info small">{order.notes}</div>}
       {active && order.eta_seconds != null && <div className="small" style={{ color: 'var(--primary)' }}>Llegada estimada: {duration(order.eta_seconds)}</div>}
       <div className="delivery-actions">
@@ -232,6 +238,59 @@ function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onS
         </div>
       )}
       {settings && null}
+    </div>
+  );
+}
+
+/** Inventario del mensajero: existencias, solicitudes y pedir más inventario. */
+function CourierInventory() {
+  const { data, loading, reload } = useAsync(() => api.get('/api/courier/inventory'), []);
+  const [asking, setAsking] = useState(false);
+  const [items, setItems] = useState([]);
+  const [note, setNote] = useState('');
+  const [busy, run] = useAction();
+  useSocketEvent('inventory:updated', () => reload(true));
+  if (loading && !data) return <Spinner center />;
+  if (!data) return <Empty title="No se pudo cargar tu inventario" />;
+  const colors = { pending: 'var(--warning)', approved: 'var(--success)', rejected: 'var(--danger)' };
+  return (
+    <div className="stack">
+      <div className="card">
+        <div className="card-header"><strong>Lo que tengo</strong><button className="btn btn-sm btn-primary" onClick={() => { setItems([{ product_id: data.products[0]?.id || '', quantity: 1 }]); setAsking(true); }} disabled={!data.products.length}><Icon name="plus" /> Solicitar inventario</button></div>
+        {data.stock.length === 0 ? <Empty icon="box" title="No tienes inventario asignado" /> : data.stock.map((s) => (
+          <div key={s.product_id} className="row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+            <span className="spacer">{s.name} <span className="tiny muted">{s.sku}</span></span>
+            <strong className="mono" style={{ fontSize: '1.15rem', color: s.quantity === 0 ? 'var(--danger)' : undefined }}>{s.quantity}</strong>
+            <span className="tiny muted">{s.unit}</span>
+          </div>
+        ))}
+      </div>
+      <h3>Mis solicitudes</h3>
+      {data.requests.length === 0 && <Empty title="Sin solicitudes" />}
+      {data.requests.map((r) => (
+        <div key={r.id} className="card" style={{ padding: 12, borderLeft: `4px solid ${colors[r.status]}` }}>
+          <div className="row"><strong className="spacer">#{r.request_number} · {r.kind_label}</strong><span className="badge" style={{ '--c': colors[r.status] }}>{r.status_label}</span></div>
+          {r.order_number && <div className="small muted">Pedido #{r.order_number} · {r.customer_name}</div>}
+          <div className="small">{r.items.map((i) => `${i.quantity_requested} × ${i.product_name}${i.quantity_approved != null && i.quantity_approved !== i.quantity_requested ? ` (aprobado ${i.quantity_approved})` : ''}`).join(' · ')}</div>
+          <div className="tiny muted">{dateTime(r.created_at)}{r.review_note ? ` · ${r.review_note}` : ''}</div>
+        </div>
+      ))}
+      {asking && (
+        <Modal title="Solicitar inventario" onClose={() => setAsking(false)} footer={<><button className="btn" onClick={() => setAsking(false)}>Cancelar</button><button className="btn btn-primary" disabled={busy} onClick={() => run(async () => {
+          const clean = items.filter((i) => i.product_id && Number(i.quantity) > 0).map((i) => ({ product_id: i.product_id, quantity: Math.trunc(Number(i.quantity)) }));
+          if (!clean.length) throw new Error('Indica al menos un producto y cantidad.');
+          await api.post('/api/courier/inventory/requests', { items: clean, note: note || undefined });
+          setAsking(false);
+          setNote('');
+          reload(true);
+        }, 'Solicitud enviada al administrador.')}>Enviar solicitud</button></>}>
+          <div className="stack">
+            <p className="small muted">Indica las cantidades que necesitas. El administrador las aprobará y se sumarán a tu inventario.</p>
+            <ItemsEditor products={data.products} items={items} onChange={setItems} stock={Object.fromEntries(data.stock.map((s) => [s.product_id, s.quantity]))} />
+            <Field label="Nota (opcional)"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></Field>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -282,7 +341,11 @@ export default function CourierApp() {
     const open = ['assigned', 'en_route', 'arriving', 'arrived', 'failed', 'customer_unavailable'].includes(o.status);
     const exists = list.some((x) => x.id === o.id);
     if (!open) return list.filter((x) => x.id !== o.id);
-    return exists ? list.map((x) => (x.id === o.id ? o : x)) : [o, ...list];
+    if (!exists) {
+      orders.reload(true); // pedido nuevo: se recarga para traer sus productos
+      return [{ ...o, items: [] }, ...list];
+    }
+    return list.map((x) => (x.id === o.id ? { ...x, ...o, items: o.items || x.items } : x));
   }));
   useSocketEvent('order:removed', ({ id }) => orders.setData((list) => list?.filter((x) => x.id !== id)));
   useSocketEvent('courier:self', (c) => setCourier(c));
@@ -327,7 +390,7 @@ export default function CourierApp() {
       toast('Sin conexión: la acción se enviará cuando vuelva internet.', { type: 'warning' });
       orders.setData((list) => list.map((x) => (x.id === order.id ? { ...x, status, status_label: '(pendiente de sincronizar)' } : x)));
     } else if (r) {
-      orders.setData((list) => list.map((x) => (x.id === r.id ? r : x)));
+      orders.setData((list) => list.map((x) => (x.id === r.id ? { ...x, ...r, items: x.items } : x)));
       if (status === 'en_route') toast(`Vas hacia ${order.customer_name}. El cliente y la oficina ya lo saben.`, { type: 'success' });
     }
   };
@@ -392,10 +455,11 @@ export default function CourierApp() {
 
         <div className="tabs" role="tablist">
           <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>MIS ENTREGAS ({orders.data?.length || 0})</button>
+          <button className={`tab ${tab === 'inventory' ? 'active' : ''}`} onClick={() => setTab('inventory')}>Mi inventario</button>
           <button className={`tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>Historial</button>
         </div>
 
-        {tab === 'history' ? <History /> : (
+        {tab === 'inventory' ? <CourierInventory /> : tab === 'history' ? <History /> : (
           <>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <span className="small muted">{activeOrder ? `Atendiendo: ${activeOrder.customer_name}` : 'Selecciona el cliente que vas a atender'}</span>

@@ -9,7 +9,7 @@ const realtime = require('../../realtime/hub');
  * Crea notificaciones internas y, si está permitido, Web Push.
  * audience: 'admin' (todo el personal), 'courier' (userIds) o 'customer' (trackingLinkIds y/o userIds).
  */
-async function notify({ audience, userIds = [], trackingLinkIds = [], orderId = null, title, body, url = '/' }) {
+async function notify({ audience, userIds = [], trackingLinkIds = [], orderId = null, title, body, url = '/', kind = null }) {
   const settings = await getSettings();
   const ts = now();
   let recipients = userIds;
@@ -26,7 +26,7 @@ async function notify({ audience, userIds = [], trackingLinkIds = [], orderId = 
   if (rows.length) await db('notifications').insert(rows);
 
   for (const r of rows) {
-    if (r.user_id) realtime.toUser(r.user_id, 'notification', { id: r.id, title, body, url, order_id: orderId, created_at: ts });
+    if (r.user_id) realtime.toUser(r.user_id, 'notification', { id: r.id, title, body, url, order_id: orderId, kind, created_at: ts });
   }
 
   if (!settings.push_notifications_enabled) return;

@@ -5,6 +5,7 @@ import AddressPicker from './AddressPicker';
 import Icon from './Icon';
 import { Field, Modal, useAsync } from './ui';
 import { can, useApp } from '../context/AppContext';
+import { ItemsEditor } from '../pages/admin/Inventory';
 
 function useQuote(address) {
   const [quote, setQuote] = useState(null);
@@ -80,6 +81,11 @@ export default function OrderForm({ onClose, onCreated }) {
   const searchTimer = useRef(null);
   const [results, setResults] = useState([]);
   const couriers = useAsync(() => api.get('/api/couriers?active=true'), []);
+  const products = useAsync(() => (can(user, 'inventory.manage') ? api.get('/api/inventory/products') : Promise.resolve([])), []);
+  const [items, setItems] = useState([]);
+  const activeProducts = (products.data || []).filter((p) => p.active);
+  const validItems = items.filter((i) => i.product_id && Number(i.quantity) > 0);
+  const itemsSubtotal = validItems.reduce((s, i) => s + (activeProducts.find((p) => p.id === i.product_id)?.price || 0) * Number(i.quantity), 0);
   const { quote, loading: quoting } = useQuote(address);
 
   useEffect(() => {
@@ -105,8 +111,8 @@ export default function OrderForm({ onClose, onCreated }) {
 
   const total = useMemo(() => {
     const f = overrideFee ? Number(fee) || 0 : quote?.fee || 0;
-    return (Number(form.subtotal) || 0) + f;
-  }, [form.subtotal, overrideFee, fee, quote]);
+    return (validItems.length ? itemsSubtotal : Number(form.subtotal) || 0) + f;
+  }, [form.subtotal, overrideFee, fee, quote, validItems.length, itemsSubtotal]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -130,7 +136,7 @@ export default function OrderForm({ onClose, onCreated }) {
           components: address.components,
         },
         save_address: !addressId && saveAddress,
-        subtotal: Number(form.subtotal) || 0,
+        ...(validItems.length ? { items: validItems.map((i) => ({ product_id: i.product_id, quantity: Math.trunc(Number(i.quantity)) })) } : { subtotal: Number(form.subtotal) || 0 }),
         payment_method: form.payment_method,
         payment_status: form.payment_status,
         status: form.status,
@@ -231,9 +237,16 @@ export default function OrderForm({ onClose, onCreated }) {
         </section>
 
         <section className="stack-sm">
-          <h3>3. Pedido y pago</h3>
+          <h3>3. Productos, pedido y pago</h3>
+          {activeProducts.length > 0 && (
+            <div className="stack-sm">
+              <div className="label">Productos del inventario (opcional)</div>
+              <ItemsEditor products={activeProducts} items={items} onChange={setItems} />
+              {validItems.length > 0 && <div className="small muted">Subtotal de productos: {money(itemsSubtotal, currency)}. Al marcar Entregado se descuentan del inventario del mensajero.</div>}
+            </div>
+          )}
           <div className="form-grid">
-            <Field label={`Subtotal de productos (${currency})`}><input className="input" type="number" min="0" step="0.01" value={form.subtotal} onChange={set('subtotal')} placeholder="0" /></Field>
+            <Field label={`Subtotal de productos (${currency})`}><input className="input" type="number" min="0" step="0.01" value={validItems.length ? itemsSubtotal : form.subtotal} onChange={set('subtotal')} placeholder="0" disabled={validItems.length > 0} /></Field>
             <Field label="Método de pago"><select className="select" value={form.payment_method} onChange={set('payment_method')}>{Object.entries(PAYMENT_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
             <Field label="Estado del pago"><select className="select" value={form.payment_status} onChange={set('payment_status')}>{Object.entries(PAYMENT_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
             <Field label="Estado inicial"><select className="select" value={form.status} onChange={set('status')}><option value="new">Nuevo</option><option value="preparing">Preparando</option><option value="ready">Listo para despacho</option></select></Field>

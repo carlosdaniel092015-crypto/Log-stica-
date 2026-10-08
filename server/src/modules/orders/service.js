@@ -12,6 +12,7 @@ const { getSettings } = require('../settings/service');
 const { createLink, activeLink, revokeLinks, FINAL_STATUSES } = require('../tracking/links');
 const { STATUS_LABELS, canTransition, ACTIVE_ROUTE, OUTCOMES } = require('./statuses');
 const events = require('./events');
+const inventory = require('../inventory/service');
 
 const money = (v) => (v == null ? null : Math.round(Number(v) * 100) / 100);
 
@@ -97,7 +98,7 @@ async function getOrder(id) {
 async function getOrderDetail(id) {
   const order = await getOrder(id);
   if (!order) throw notFound('Pedido no encontrado.');
-  const [history, assignments, proofs, link] = await Promise.all([
+  const [history, assignments, proofs, link, itemsByOrder, invRequests] = await Promise.all([
     db('order_status_history as h').leftJoin('users as u', 'u.id', 'h.user_id').where('h.order_id', id).orderBy('h.created_at', 'asc').select('h.*', 'u.name as user_name'),
     db('delivery_assignments as a')
       .leftJoin('couriers as c', 'c.id', 'a.courier_id')
@@ -108,6 +109,8 @@ async function getOrderDetail(id) {
       .select('a.*', 'cu.name as courier_name', 'by.name as assigned_by_name'),
     db('delivery_proofs').where({ order_id: id }).orderBy('created_at', 'desc'),
     activeLink(id),
+    inventory.itemsForOrders([id]),
+    inventory.listRequests({ orderId: id }),
   ]);
   return {
     ...order,
@@ -115,6 +118,8 @@ async function getOrderDetail(id) {
     assignments,
     proofs: proofs.map(mapProof),
     tracking_link: link,
+    items: itemsByOrder[id] || [],
+    inventory_requests: invRequests,
   };
 }
 
@@ -294,6 +299,15 @@ async function createOrder(input, req) {
       updated_at: ts,
     };
     await trx('orders').insert(order);
+    if (input.items?.length) {
+      // Productos del pedido: si no se indicó subtotal, se calcula con los precios del catálogo.
+      const r = await inventory.setOrderItems(trx, order.id, input.items);
+      if (input.subtotal == null) {
+        order.subtotal = r.subtotal;
+        order.total = money(r.subtotal + fee);
+        await trx('orders').where({ id: order.id }).update({ subtotal: order.subtotal, total: order.total });
+      }
+    }
     await insertHistory(trx, { orderId: order.id, from: null, to: order.status, user, note: 'Pedido creado' });
     const link = await createLink(trx, order.id, user.id);
     await audit(req, {
@@ -518,6 +532,8 @@ async function changeStatus(orderId, to, req, extra = {}) {
     }
     // Entregado o cancelado: el enlace del cliente vence de inmediato (seguridad del mensajero).
     if (FINAL_STATUSES.includes(to)) await revokeLinks(trx, orderId);
+    // Entregado: se descuenta el inventario del mensajero y se crea la solicitud para aprobación.
+    if (to === 'delivered') await inventory.consumeForDelivery(trx, order, req.user?.id);
     if (patch.courier_id === null && order.courier_id) {
       await trx('delivery_assignments').where({ order_id: orderId, courier_id: order.courier_id }).whereNull('unassigned_at').update({ unassigned_at: ts, reason: 'Devuelto a despacho' });
     }

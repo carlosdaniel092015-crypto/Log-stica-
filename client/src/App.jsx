@@ -17,6 +17,7 @@ const Rates = lazy(() => import('./pages/admin/Rates'));
 const ZonesMap = lazy(() => import('./pages/admin/ZonesMap'));
 const Geography = lazy(() => import('./pages/admin/Geography'));
 const Users = lazy(() => import('./pages/admin/Users'));
+const Inventory = lazy(() => import('./pages/admin/Inventory'));
 const Audit = lazy(() => import('./pages/admin/Audit'));
 const Settings = lazy(() => import('./pages/admin/Settings'));
 const CourierApp = lazy(() => import('./pages/courier/CourierApp'));
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="mensajeros" element={<Couriers />} />
           <Route path="clientes" element={<Customers />} />
           <Route path="clientes/:id" element={<CustomerDetail />} />
+          <Route path="inventario" element={<Inventory />} />
           <Route path="tarifas" element={<Rates />} />
           <Route path="zonas" element={<ZonesMap />} />
           <Route path="geografia" element={<Geography />} />

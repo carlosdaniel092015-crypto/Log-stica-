@@ -10,6 +10,7 @@ const svc = require('./service');
 const orders = require('../orders/service');
 const { STATUSES } = require('../orders/statuses');
 const { buildShare } = require('../tracking/share');
+const inventory = require('../inventory/service');
 
 /** Rutas para el personal: listado y detalle de mensajeros. */
 const staff = express.Router();
@@ -82,13 +83,35 @@ self.get('/orders', ah(async (req, res) => {
     const cutoff = Date.now() - 24 * 3600_000;
     list = list.filter((o) => !['failed', 'customer_unavailable'].includes(o.status) || new Date(o.updated_at).getTime() > cutoff);
   }
-  res.json(list.map(orders.courierView));
+  const items = await inventory.itemsForOrders(list.map((o) => o.id));
+  res.json(list.map((o) => ({ ...orders.courierView(o), items: items[o.id] || [] })));
 }));
 
 self.get('/orders/:id', ah(async (req, res) => {
   const order = await orders.getOrder(req.params.id);
   if (!order || order.courier_id !== req.user.courierId) throw notFound('Pedido no encontrado.');
   res.json(orders.courierView(order));
+}));
+
+/** Inventario del mensajero y sus solicitudes. */
+self.get('/inventory', ah(async (req, res) => {
+  const [stock, requests, products] = await Promise.all([
+    inventory.courierStock(req.user.courierId),
+    inventory.listRequests({ courierId: req.user.courierId, limit: 50 }),
+    db('products').where({ active: true }).orderBy('name').select('id', 'sku', 'name', 'unit'),
+  ]);
+  res.json({ stock, requests, products });
+}));
+
+/** El mensajero solicita inventario al administrador (cantidades solicitadas). */
+self.post('/inventory/requests', validate(z.object({
+  items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(100000) })).min(1).max(50),
+  note: z.string().trim().max(500).optional(),
+})), ah(async (req, res) => {
+  const id = await inventory.createRestockRequest(req.user.courierId, req.body.items, req.body.note);
+  const c = await db('couriers as c').join('users as u', 'u.id', 'c.user_id').where('c.id', req.user.courierId).first('u.name');
+  require('../notifications/service').notify({ audience: 'admin', title: 'Nueva solicitud de inventario', body: `${c.name} solicita inventario.`, url: '/admin/inventario' }).catch(() => {});
+  res.status(201).json({ id });
 }));
 
 /** El mensajero comparte el enlace de seguimiento de un pedido asignado a él. */

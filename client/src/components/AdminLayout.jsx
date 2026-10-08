@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import NotificationBell from './NotificationBell';
 import { OnlineIndicator } from './ui';
+import OutcomeToasts from './OutcomeToasts';
 import { InstallBanner } from './pwa';
 import { can, useApp } from '../context/AppContext';
 
@@ -12,6 +13,7 @@ const NAV = [
   { to: '/admin/seguimiento', label: 'Seguimiento en vivo', short: 'En vivo', icon: 'navigation', perm: 'tracking.view', mobile: true },
   { to: '/admin/mensajeros', label: 'Mensajeros', icon: 'truck', perm: 'tracking.view', mobile: true },
   { to: '/admin/clientes', label: 'Clientes', icon: 'users', perm: 'customers.manage' },
+  { to: '/admin/inventario', label: 'Inventario', icon: 'archive', perm: 'inventory.manage' },
   { section: 'Cobertura' },
   { to: '/admin/tarifas', label: 'Tarifas de entrega', short: 'Tarifas', icon: 'tag', perm: 'orders.view' },
   { to: '/admin/zonas', label: 'Zonas en el mapa', icon: 'layers', perm: 'orders.view' },
@@ -74,6 +76,7 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <OutcomeToasts />
       <nav className="bottom-nav" aria-label="Navegación">
         {items.filter((n) => n.mobile).map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end}>

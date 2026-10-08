@@ -9,6 +9,7 @@ const geoData = require('./data/dominican-republic.json');
 const { uuid, randomToken, sha256, encrypt } = require('../../utils/crypto');
 
 const TABLES_IN_DELETE_ORDER = [
+  'inventory_movements', 'inventory_request_items', 'inventory_requests', 'order_items', 'courier_stock', 'products',
   'audit_logs', 'notifications', 'push_subscriptions', 'tracking_links', 'delivery_proofs', 'delivery_assignments',
   'order_status_history', 'courier_locations', 'orders', 'customer_addresses', 'customers', 'couriers',
   'delivery_rates', 'delivery_zones', 'sectors', 'municipalities', 'provinces', 'branches', 'users',
@@ -192,6 +193,41 @@ exports.seed = async function seed(knex) {
   ];
   const todayOrders = [];
   for (const o of today) todayOrders.push(await createOrder({ ...o, subtotal: 800 + Math.floor(rand() * 20) * 100 }));
+
+  // --- Inventario de ejemplo ---
+  const productDefs = [
+    { sku: 'AGUA-5G', name: 'Botellón de agua 5 galones', unit: 'botellón', price: 100, warehouse: 300 },
+    { sku: 'REF-24', name: 'Caja de refrescos (24 uds.)', unit: 'caja', price: 900, warehouse: 80 },
+    { sku: 'ARROZ-25', name: 'Saco de arroz 25 lb', unit: 'saco', price: 1150, warehouse: 60 },
+    { sku: 'ACEITE-1G', name: 'Aceite vegetal 1 galón', unit: 'galón', price: 650, warehouse: 90 },
+  ];
+  const products = [];
+  for (const p of productDefs) {
+    const id = uuid();
+    await knex('products').insert({ id, sku: p.sku, name: p.name, unit: p.unit, price: p.price, warehouse_stock: p.warehouse, active: true, ...stamp });
+    await knex('inventory_movements').insert({ id: uuid(), type: 'warehouse_adjust', product_id: id, warehouse_delta: p.warehouse, user_id: adminId, note: 'Existencia inicial', created_at: ts });
+    products.push({ ...p, id });
+  }
+  // Inventario asignado a Juan y Pedro.
+  for (const [courier, qty] of [[couriers[0], [20, 6, 4, 6]], [couriers[1], [15, 4, 3, 5]]]) {
+    for (const [i, p] of products.entries()) {
+      await knex('courier_stock').insert({ id: uuid(), courier_id: courier.id, product_id: p.id, quantity: qty[i], updated_at: ts });
+      await knex('products').where({ id: p.id }).decrement('warehouse_stock', qty[i]);
+      await knex('inventory_movements').insert({ id: uuid(), type: 'assign', product_id: p.id, courier_id: courier.id, courier_delta: qty[i], warehouse_delta: -qty[i], user_id: adminId, note: 'Carga del día', created_at: ts });
+    }
+  }
+  // Productos en los pedidos abiertos de hoy.
+  for (const [i, o] of todayOrders.filter((x) => !['delivered', 'cancelled'].includes(x.status)).entries()) {
+    const p1 = products[i % products.length];
+    const p2 = products[(i + 1) % products.length];
+    const lines = [{ p: p1, q: 2 }, ...(i % 2 ? [{ p: p2, q: 1 }] : [])];
+    let subtotal = 0;
+    for (const l of lines) {
+      subtotal += l.p.price * l.q;
+      await knex('order_items').insert({ id: uuid(), order_id: o.id, product_id: l.p.id, product_name: l.p.name, quantity: l.q, unit_price: l.p.price, created_at: ts });
+    }
+    await knex('orders').where({ id: o.id }).update({ subtotal, total: subtotal + Number(o.delivery_fee) });
+  }
 
   // Pedro está en ruta hacia María con la jornada activa y ubicación compartida.
   const enRoute = todayOrders.find((o) => o.status === 'en_route');

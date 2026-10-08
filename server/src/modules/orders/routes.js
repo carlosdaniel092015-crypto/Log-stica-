@@ -51,6 +51,7 @@ const createSchema = z
     courier_id: z.string().uuid().nullable().optional(),
     location_confirmed: z.boolean().optional(),
     branch_id: z.string().uuid().nullable().optional(),
+    items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(100000) })).max(100).optional(),
   })
   .refine((v) => v.customer_id || v.customer, { message: 'selecciona o registra un cliente', path: ['customer'] });
 

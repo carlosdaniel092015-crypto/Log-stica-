@@ -397,3 +397,19 @@ gmp-place-autocomplete { width: 100%; }
 .legend { display: flex; gap: 14px; font-size: 0.8rem; color: var(--text-2); }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .chart-tooltip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 0.82rem; box-shadow: var(--shadow-lg); color: var(--text); }
+
+/* Resultado de entregas: verde = entregado, rojo = no entregado */
+.outcome-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid; text-decoration: none !important; color: var(--text); animation: pop 0.25s; }
+.outcome-card svg { width: 22px; height: 22px; flex: none; }
+.outcome-card.success { background: color-mix(in srgb, var(--success) 12%, var(--surface)); border-color: color-mix(in srgb, var(--success) 45%, transparent); }
+.outcome-card.success svg, .outcome-card.success .bold { color: var(--success); }
+.outcome-card.failure { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.outcome-card.failure svg, .outcome-card.failure .bold { color: var(--danger); }
+.table tr.row-success td { background: color-mix(in srgb, var(--success) 10%, transparent); }
+.table tr.row-success td:first-child { box-shadow: inset 4px 0 0 var(--success); }
+.table tr.row-failure td { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.table tr.row-failure td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
+.table tr.row-flash td { animation: flash 2.4s ease-out; }
+@keyframes flash { 0% { filter: brightness(1.25); } 100% { filter: none; } }
+.outcome-toasts { position: fixed; z-index: 210; top: 72px; right: 16px; display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 32px)); }
+.outcome-toasts .outcome-card { box-shadow: var(--shadow-lg); }

@@ -162,6 +162,18 @@ export default function OrderDetail() {
               <dt>Notas</dt><dd>{order.notes || '—'}</dd>
             </dl>
           </div>
+          {order.items?.length > 0 && (
+            <div className="card card-body stack-sm">
+              <h3>Productos</h3>
+              {order.items.map((i) => <div key={i.product_id} className="row small"><span className="spacer">{i.quantity} × {i.name}</span><span className="mono">{money(i.quantity * i.unit_price, currency)}</span></div>)}
+              {order.inventory_requests?.map((r) => (
+                <div key={r.id} className="small">
+                  Inventario: <Link to="/admin/inventario">solicitud #{r.request_number}</Link>{' '}
+                  <span className="badge" style={{ '--c': r.status === 'approved' ? 'var(--success)' : r.status === 'rejected' ? 'var(--danger)' : 'var(--warning)' }}>{r.status_label}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="card card-body stack">
             <h3>Pago</h3>
             <dl className="kv">

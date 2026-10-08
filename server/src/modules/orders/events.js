@@ -35,6 +35,21 @@ async function orderChanged(orderId, info = {}) {
     if (info.previousCourierId && info.previousCourierId !== order.courier_id) {
       realtime.toCourier(info.previousCourierId, 'order:removed', { id: order.id });
     }
+    if (info.type === 'status' && ['delivered', 'failed', 'customer_unavailable'].includes(order.status)) {
+      // Aviso inmediato al personal: verde si se entregó, rojo si no se entregó.
+      realtime.toStaff('order:outcome', {
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        status_label: order.status_label,
+        outcome: order.status === 'delivered' ? 'success' : 'failure',
+        courier_name: order.courier_name,
+        customer_name: order.customer_name,
+        address: order.address,
+        at: order.updated_at,
+      });
+    }
+    if (info.type === 'status' && order.status === 'delivered') realtime.toStaff('inventory:updated', { courier_id: order.courier_id, reason: 'delivered' });
     const closed = ['delivered', 'cancelled'].includes(order.status);
     if (closed) {
       // Seguimiento cerrado: se avisa a quien tenga la página abierta y se le saca del canal,
@@ -110,6 +125,7 @@ async function orderChanged(orderId, info = {}) {
         title: titles[order.status],
         body: `${order.courier_name || 'Mensajero'} → ${order.customer_name} (${order.sector_name || order.address})`,
         url: `/admin/pedidos/${order.id}`,
+        kind: 'outcome', // el panel ya lo muestra con su aviso verde/rojo
       });
     }
   } catch (err) {

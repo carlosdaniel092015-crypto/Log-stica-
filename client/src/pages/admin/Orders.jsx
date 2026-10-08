@@ -29,6 +29,11 @@ export default function Orders() {
   const [creating, setCreating] = useState(params.get('nuevo') === '1');
   const [sharing, setSharing] = useState(null);
   const [busy, run] = useAction();
+  const [flash, setFlash] = useState({});
+  useSocketEvent('order:outcome', (o) => {
+    setFlash((f) => ({ ...f, [o.id]: true }));
+    setTimeout(() => setFlash((f) => ({ ...f, [o.id]: false })), 2500);
+  });
 
   const range = useMemo(() => {
     if (!date) return {};
@@ -89,7 +94,7 @@ export default function Orders() {
               </thead>
               <tbody>
                 {(orders.data || []).map((o) => (
-                  <tr key={o.id} className="clickable" onClick={() => navigate(`/admin/pedidos/${o.id}`)}>
+                  <tr key={o.id} className={`clickable ${o.status === 'delivered' ? 'row-success' : ['failed', 'customer_unavailable'].includes(o.status) ? 'row-failure' : ''} ${flash[o.id] ? 'row-flash' : ''}`} onClick={() => navigate(`/admin/pedidos/${o.id}`)}>
                     <td className="bold nowrap">#{o.order_number}{o.priority >= 5 && <span className="badge no-dot" style={{ '--c': 'var(--danger)', marginLeft: 6 }}>{o.priority >= 10 ? 'Urgente' : 'Alta'}</span>}</td>
                     <td><div>{o.customer_name}</div><div className="tiny muted">{o.phone}</div></td>
                     <td><div className="ellipsis" style={{ maxWidth: 200 }}>{o.sector_name || o.municipality_name || '—'}</div><div className="tiny muted">{o.zone_name || 'Sin zona'}</div></td>

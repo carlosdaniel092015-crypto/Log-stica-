@@ -6,7 +6,7 @@ const ROLES = [
   {
     id: 'dispatcher',
     name: 'Despachador',
-    permissions: ['dashboard.view', 'orders.view', 'orders.manage', 'orders.assign', 'customers.manage', 'tracking.view'],
+    permissions: ['dashboard.view', 'orders.view', 'orders.manage', 'orders.assign', 'customers.manage', 'tracking.view', 'inventory.manage'],
   },
   { id: 'courier', name: 'Mensajero', permissions: [] },
 ];

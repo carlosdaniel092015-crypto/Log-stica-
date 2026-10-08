@@ -9,7 +9,7 @@ const ROLE_LABELS = { admin: 'Administrador', dispatcher: 'Despachador', courier
 const PERMISSIONS = {
   'dashboard.view': 'Ver dashboard', 'orders.view': 'Ver pedidos', 'orders.manage': 'Crear y editar pedidos', 'orders.assign': 'Asignar mensajeros',
   'orders.override_fee': 'Modificar costo de envío', 'customers.manage': 'Administrar clientes', 'tracking.view': 'Ver seguimiento en vivo',
-  'zones.manage': 'Administrar zonas y tarifas', 'users.manage': 'Administrar usuarios', 'settings.manage': 'Configuración del sistema', 'audit.view': 'Ver auditoría',
+  'zones.manage': 'Administrar zonas y tarifas', 'users.manage': 'Administrar usuarios', 'settings.manage': 'Configuración del sistema', 'audit.view': 'Ver auditoría', 'inventory.manage': 'Administrar inventario',
 };
 
 function UserModal({ user, onClose, onSaved }) {

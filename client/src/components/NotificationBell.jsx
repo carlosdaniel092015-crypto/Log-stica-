@@ -26,7 +26,7 @@ export default function NotificationBell() {
 
   useSocketEvent('notification', (n) => {
     setItems((list) => [n, ...list].slice(0, 30));
-    toast(n.body, { title: n.title });
+    if (n.kind !== 'outcome') toast(n.body, { title: n.title });
   });
 
   const unread = items.filter((n) => !n.read_at).length;

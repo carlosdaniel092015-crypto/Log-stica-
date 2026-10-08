@@ -102,6 +102,7 @@ function createApp() {
   api.use('/couriers', requireStaff, require('./modules/couriers/routes').staff);
   api.use('/courier', require('./modules/couriers/routes').self);
   api.use('/orders', requireStaff, require('./modules/orders/routes'));
+  api.use('/inventory', requireStaff, require('./modules/inventory/routes'));
   api.use('/proofs', require('./modules/orders/proofs'));
   api.use('/track', require('./modules/tracking/routes'));
   api.use('/notifications', require('./modules/notifications/routes'));
