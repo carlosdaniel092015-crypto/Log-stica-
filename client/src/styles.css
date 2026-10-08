@@ -334,7 +334,7 @@ gmp-place-autocomplete { width: 100%; }
 .delivery-card { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .delivery-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent); }
 .delivery-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 0.86rem; }
-.delivery-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.delivery-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 .delivery-actions .btn { flex-direction: column; gap: 2px; font-size: 0.72rem; min-height: 54px; padding: 6px 4px; }
 .status-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; font-weight: 650; }
 .status-bar.on { background: color-mix(in srgb, var(--success) 14%, var(--surface)); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); }
@@ -427,12 +427,12 @@ gmp-place-autocomplete { width: 100%; }
 .mk-drop span { transform: rotate(45deg); color: #fff; font: 700 10px var(--font); }
 .mk-vertex { display: block; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #fff; border: 3px solid var(--c); cursor: grab; }
 .mk-small { display: block; width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%; background: var(--c); border: 3px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.35); }
-.leaflet-container { font: inherit; background: #e9eef3; }
-.map-dark .leaflet-container, .leaflet-container.map-dark { background: #0b1220; }
-.leaflet-control-attribution { font-size: 10px !important; }
-.leaflet-bar a { color: #0f172a !important; }
-.leaflet-popup-content { font: 0.86rem/1.45 var(--font); color: #0f172a; margin: 10px 12px; }
-.map .leaflet-container { position: absolute; inset: 0; }
+.maplibregl-map { font: inherit; background: #e9eef3; isolation: isolate; } /* isolation: sus capas nunca tapan modales */
+.maplibregl-map.map-dark { background: #0b1220; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.maplibregl-ctrl-group button { width: 32px; height: 32px; }
+.maplibregl-popup-content { font: 0.86rem/1.45 var(--font); color: #0f172a; padding: 10px 12px; border-radius: 10px; box-shadow: 0 8px 24px rgb(15 23 42 / 0.18); }
+.maplibregl-marker.mk-icon { cursor: pointer; }
 
 /* ---------- Diseño Claude Design: piezas comunes ---------- */
 .avatar { --av: var(--primary); width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 0.72rem; font-weight: 750; color: #fff; background: var(--av); letter-spacing: 0.02em; }
@@ -518,10 +518,11 @@ gmp-place-autocomplete { width: 100%; }
 .map-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 0.8rem; font-weight: 650; color: var(--text); }
 .map-chip svg { color: var(--primary); }
 .map.card { padding: 0; }
-.geo-item { border-radius: 10px; margin-bottom: 2px; }
-.geo-actions { display: inline-flex; opacity: 0; transition: opacity 0.15s; }
-.geo-item:hover .geo-actions, .geo-item:focus-within .geo-actions { opacity: 1; }
-@media (hover: none) { .geo-actions { opacity: 1; } }
+.geo-item { border-radius: 10px; margin-bottom: 2px; position: relative; }
+/* Con ratón, los botones aparecen encima al pasar el cursor y no le quitan espacio al nombre. */
+.geo-actions { display: inline-flex; opacity: 0; transition: opacity 0.15s; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: var(--surface); border-radius: 8px; box-shadow: 0 2px 8px rgb(15 23 42 / 0.12); pointer-events: none; }
+.geo-item:hover .geo-actions, .geo-item:focus-within .geo-actions { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .geo-actions { opacity: 1; position: static; transform: none; box-shadow: none; background: none; pointer-events: auto; } }
 
 /* ---------- App del mensajero (diseño) ---------- */
 .seg-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 5px; }
@@ -568,3 +569,4 @@ gmp-place-autocomplete { width: 100%; }
 .pw-card { width: 100%; max-width: 420px; }
 .share-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .share-row .btn-share { white-space: nowrap; min-width: 0; padding-inline: 10px; overflow: hidden; text-overflow: ellipsis; }
+.maplibregl-popup-close-button { border: 0 !important; background: none !important; box-shadow: none !important; font-size: 18px; line-height: 1; padding: 2px 7px; color: #64748b; min-height: 0; }

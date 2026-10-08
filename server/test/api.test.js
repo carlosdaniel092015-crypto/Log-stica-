@@ -238,3 +238,23 @@ test('rechaza formularios no JSON (protección CSRF)', async () => {
   const res = await admin.post('/api/orders').type('form').send('a=1');
   assert.equal(res.status, 415);
 });
+
+test('pedido para cliente nuevo sin teléfono (opcional)', async () => {
+  const created = await admin.post('/api/orders').send({
+    customer: { name: 'Cliente Sin Teléfono', phone: '' },
+    address: { formatted_address: 'Calle 1, Naco', lat: 18.476, lng: -69.93 },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.order.phone, null);
+  // Dos clientes sin teléfono no se confunden entre sí.
+  const other = await admin.post('/api/orders').send({ customer: { name: 'Otra Persona' }, address: { formatted_address: 'Calle 2, Naco', lat: 18.476, lng: -69.93 } });
+  assert.equal(other.status, 201);
+  assert.notEqual(other.body.order.customer_id, created.body.order.customer_id);
+  // Un teléfono escrito sigue validándose.
+  const bad = await admin.post('/api/orders').send({ customer: { name: 'Teléfono Malo', phone: '12' }, address: { formatted_address: 'Calle 3', lat: 18.476, lng: -69.93 } });
+  assert.equal(bad.status, 400);
+  // El enlace para compartir funciona sin teléfono.
+  const share = await admin.get(`/api/orders/${created.body.order.id}/share`);
+  assert.equal(share.status, 200);
+  assert.match(share.body.whatsapp_url, /^https:\/\/wa\.me\/\?text=/, 'sin número: WhatsApp deja elegir el contacto');
+});

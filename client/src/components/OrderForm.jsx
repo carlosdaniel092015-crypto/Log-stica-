@@ -118,7 +118,8 @@ export default function OrderForm({ onClose, onCreated }) {
   const stepError = (n) => {
     if (n === 1) {
       if (mode === 'existing' && !customer) return 'Selecciona un cliente o registra uno nuevo.';
-      if (mode === 'new' && (!newCustomer.name.trim() || newCustomer.phone.trim().length < 7)) return 'Indica el nombre y el teléfono del cliente.';
+      if (mode === 'new' && !newCustomer.name.trim()) return 'Indica el nombre del cliente.';
+      if (mode === 'new' && newCustomer.phone.trim() && newCustomer.phone.replace(/\D/g, '').length < 7) return 'El teléfono no es válido (o déjalo vacío).';
     }
     if (n === 2 && !address.formatted_address) return 'Indica la dirección de entrega.';
     return null;
@@ -138,7 +139,7 @@ export default function OrderForm({ onClose, onCreated }) {
     setBusy(true);
     try {
       const body = {
-        ...(mode === 'existing' ? { customer_id: customer.id } : { customer: { ...newCustomer, email: newCustomer.email || null } }),
+        ...(mode === 'existing' ? { customer_id: customer.id } : { customer: { ...newCustomer, phone: newCustomer.phone.trim() || null, whatsapp: newCustomer.whatsapp.trim() || null, email: newCustomer.email || null } }),
         address_id: addressId || null,
         address: {
           formatted_address: address.formatted_address,
@@ -225,7 +226,7 @@ export default function OrderForm({ onClose, onCreated }) {
             ) : (
               <div className="form-grid">
                 <Field label="Nombre *"><input className="input" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} autoFocus /></Field>
-                <Field label="Teléfono *"><input className="input" type="tel" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="809-555-0000" /></Field>
+                <Field label="Teléfono (opcional)"><input className="input" type="tel" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="809-555-0000" /></Field>
                 <Field label="WhatsApp"><input className="input" type="tel" value={newCustomer.whatsapp} onChange={(e) => setNewCustomer({ ...newCustomer, whatsapp: e.target.value })} placeholder="Igual al teléfono si se deja vacío" /></Field>
                 <Field label="Correo"><input className="input" type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} /></Field>
               </div>

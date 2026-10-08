@@ -8,6 +8,7 @@ const { validate } = require('../../middleware/validate');
 const { requireStaff, requirePermission } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
 const { resolveAdministrative } = require('./resolver');
+const { loadBaseGeography } = require('./base');
 
 const router = express.Router();
 router.use(requireStaff);
@@ -29,6 +30,16 @@ const schemas = {
 const mapRow = (r) => ({ ...r, active: bool(r.active) });
 
 /** Árbol completo: provincias → municipios → sectores. */
+/** Carga (o completa) la división territorial de RD: solo agrega lo que falta. */
+router.post('/load-base', requirePermission('zones.manage'), ah(async (req, res) => {
+  const added = await db.transaction(async (trx) => {
+    const result = await loadBaseGeography(trx);
+    await audit(req, { action: 'geo.load_base', entity: 'province', newValue: result }, trx);
+    return result;
+  });
+  res.json(added);
+}));
+
 router.get('/tree', ah(async (_req, res) => {
   const [provinces, municipalities, sectors] = await Promise.all([
     db('provinces').orderBy('name'),

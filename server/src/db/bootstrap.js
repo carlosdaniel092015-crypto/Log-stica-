@@ -30,6 +30,18 @@ async function ensureFirstAdmin() {
 }
 
 /**
+ * Instalación nueva sin geografía: carga las provincias, municipios y sectores de RD
+ * para que el administrador no tenga que escribirlos a mano.
+ */
+async function ensureBaseGeography() {
+  const any = await db('provinces').first('id');
+  if (any) return;
+  const { loadBaseGeography } = require('../modules/geo/base');
+  const added = await db.transaction((trx) => loadBaseGeography(trx));
+  console.log(`División territorial de RD cargada: ${added.provinces} provincias, ${added.municipalities} municipios y ${added.sectors} sectores.`);
+}
+
+/**
  * LOAD_DEMO_DATA=true: carga los datos de ejemplo de RD solo si la base está vacía
  * (nunca borra datos existentes). Útil para probar un despliegue nuevo.
  */
@@ -47,4 +59,4 @@ async function loadDemoDataIfEmpty() {
   }
 }
 
-module.exports = { ensureFirstAdmin, loadDemoDataIfEmpty };
+module.exports = { ensureBaseGeography, ensureFirstAdmin, loadDemoDataIfEmpty };

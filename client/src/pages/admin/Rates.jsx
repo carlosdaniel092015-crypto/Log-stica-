@@ -26,7 +26,7 @@ function PriceCell({ zone, onSaved, editable }) {
 }
 
 export default function Rates() {
-  const { user } = useApp();
+  const { user, toast } = useApp();
   const editable = can(user, 'zones.manage');
   const [q, setQ] = useState('');
   const [kind, setKind] = useState('');
@@ -39,6 +39,14 @@ export default function Rates() {
   const [busy, run] = useAction();
 
   const replace = (z) => zones.setData((list) => list.map((x) => (x.id === z.id ? z : x)));
+
+  const loadSuggested = async () => {
+    const r = await run(() => api.post('/api/zones/load-suggested'));
+    if (!r) return;
+    toast(r.created ? `Se crearon ${r.created} zonas con tarifas sugeridas. Ajusta los precios a los tuyos.` : 'Ya tenías todas las zonas sugeridas.', { type: 'success' });
+    zones.reload(true);
+    allZones.reload(true);
+  };
 
   const onImport = async (e) => {
     const file = e.target.files?.[0];
@@ -66,11 +74,19 @@ export default function Rates() {
             <>
               <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}><Icon name="upload" /> Importar CSV</button>
               <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={onImport} />
+              <button className="btn" onClick={loadSuggested} disabled={busy}><Icon name="tag" /> Tarifas sugeridas</button>
               <button className="btn btn-primary" onClick={() => setEditing({})}><Icon name="plus" /> Nueva zona</button>
             </>
           )}
         </div>
       </div>
+      {editable && allZones.data?.length === 0 && (
+        <div className="banner info" style={{ marginBottom: 12 }}>
+          <span className="banner-icon"><Icon name="tag" size={18} /></span>
+          <div className="spacer"><strong>Aún no tienes zonas de entrega.</strong> Carga tarifas sugeridas para Gran Santo Domingo, San Cristóbal y Santiago (Distrito Nacional, Santo Domingo Este, Oeste, Norte, Boca Chica, Haina…) y luego ajusta los precios a los tuyos.</div>
+          <button className="btn btn-sm btn-primary" onClick={loadSuggested} disabled={busy}>Cargar tarifas sugeridas</button>
+        </div>
+      )}
       {importResult && (
         <div className={`alert ${importResult.errors.length ? 'alert-warning' : 'alert-success'}`} style={{ marginBottom: 12 }}>
           Importación: {importResult.created} creadas, {importResult.updated} actualizadas{importResult.errors.length ? `, ${importResult.errors.length} con errores` : ''}.

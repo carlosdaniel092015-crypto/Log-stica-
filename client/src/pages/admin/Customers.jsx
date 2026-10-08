@@ -29,7 +29,7 @@ export function CustomerFormModal({ initial, onClose, onSaved }) {
       <form id="customer-form" className="stack" onSubmit={submit}>
         <div className="form-grid">
           <Field label="Nombre"><input className="input" value={form.name} onChange={set('name')} required /></Field>
-          <Field label="Teléfono"><input className="input" type="tel" value={form.phone} onChange={set('phone')} required /></Field>
+          <Field label="Teléfono (opcional)"><input className="input" type="tel" value={form.phone} onChange={set('phone')} /></Field>
           <Field label="WhatsApp"><input className="input" type="tel" value={form.whatsapp} onChange={set('whatsapp')} /></Field>
           <Field label="Correo"><input className="input" type="email" value={form.email} onChange={set('email')} /></Field>
           <Field label="Notas" className="full"><textarea className="textarea" value={form.notes} onChange={set('notes')} /></Field>
@@ -92,7 +92,7 @@ export default function Customers() {
                   {(data || []).map((c) => (
                     <tr key={c.id} className="clickable" onClick={() => navigate(`/admin/clientes/${c.id}`)} style={{ opacity: c.active ? 1 : 0.5 }}>
                       <td><span className="cell-person"><Avatar name={c.name} soft /><strong>{c.name}</strong></span></td>
-                      <td className="mono">{c.phone}</td>
+                      <td className="mono">{c.phone || "—"}</td>
                       <td>{c.sector_name || '—'}{c.municipality_name && <span className="muted"> · {c.municipality_name}</span>}</td>
                       <td className="num">{c.orders_count}</td>
                       <td className="small">{c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>

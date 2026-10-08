@@ -1,0 +1,1624 @@
+{
+ "source": "Provincias y municipios: ONE, División Territorial 2021 (vía dominican-republic-geodata, MIT). Coordenadas: GeoNames (CC BY 4.0) y cabeceras aproximadas. Sectores principales con coordenadas aproximadas (se pueden editar y agregar más desde el panel).",
+ "provinces": [
+  {
+   "name": "Distrito Nacional",
+   "code": "DO-01",
+   "lat": 18.4861,
+   "lng": -69.9312
+  },
+  {
+   "name": "Azua",
+   "code": "DO-02",
+   "lat": 18.4532,
+   "lng": -70.7349
+  },
+  {
+   "name": "Bahoruco",
+   "code": "DO-03",
+   "lat": 18.481,
+   "lng": -71.419
+  },
+  {
+   "name": "Barahona",
+   "code": "DO-04",
+   "lat": 18.2085,
+   "lng": -71.1008
+  },
+  {
+   "name": "Dajabón",
+   "code": "DO-05",
+   "lat": 19.549,
+   "lng": -71.708
+  },
+  {
+   "name": "Duarte",
+   "code": "DO-06",
+   "lat": 19.3008,
+   "lng": -70.2526
+  },
+  {
+   "name": "Elías Piña",
+   "code": "DO-07",
+   "lat": 18.877,
+   "lng": -71.7
+  },
+  {
+   "name": "El Seibo",
+   "code": "DO-08",
+   "lat": 18.765,
+   "lng": -69.039
+  },
+  {
+   "name": "Espaillat",
+   "code": "DO-09",
+   "lat": 19.393,
+   "lng": -70.525
+  },
+  {
+   "name": "Independencia",
+   "code": "DO-10",
+   "lat": 18.492,
+   "lng": -71.851
+  },
+  {
+   "name": "La Altagracia",
+   "code": "DO-11",
+   "lat": 18.615,
+   "lng": -68.708
+  },
+  {
+   "name": "La Romana",
+   "code": "DO-12",
+   "lat": 18.427,
+   "lng": -68.972
+  },
+  {
+   "name": "La Vega",
+   "code": "DO-13",
+   "lat": 19.222,
+   "lng": -70.529
+  },
+  {
+   "name": "María Trinidad Sánchez",
+   "code": "DO-14",
+   "lat": 19.376,
+   "lng": -69.847
+  },
+  {
+   "name": "Monte Cristi",
+   "code": "DO-15",
+   "lat": 19.848,
+   "lng": -71.646
+  },
+  {
+   "name": "Pedernales",
+   "code": "DO-16",
+   "lat": 18.038,
+   "lng": -71.744
+  },
+  {
+   "name": "Peravia",
+   "code": "DO-17",
+   "lat": 18.28,
+   "lng": -70.331
+  },
+  {
+   "name": "Puerto Plata",
+   "code": "DO-18",
+   "lat": 19.793,
+   "lng": -70.688
+  },
+  {
+   "name": "Hermanas Mirabal",
+   "code": "DO-19",
+   "lat": 19.378,
+   "lng": -70.418
+  },
+  {
+   "name": "Samaná",
+   "code": "DO-20",
+   "lat": 19.205,
+   "lng": -69.336
+  },
+  {
+   "name": "San Cristóbal",
+   "code": "DO-21",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "name": "San Juan",
+   "code": "DO-22",
+   "lat": 18.806,
+   "lng": -71.229
+  },
+  {
+   "name": "San Pedro de Macorís",
+   "code": "DO-23",
+   "lat": 18.461,
+   "lng": -69.308
+  },
+  {
+   "name": "Sánchez Ramírez",
+   "code": "DO-24",
+   "lat": 19.053,
+   "lng": -70.149
+  },
+  {
+   "name": "Santiago",
+   "code": "DO-25",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "name": "Santiago Rodríguez",
+   "code": "DO-26",
+   "lat": 19.476,
+   "lng": -71.341
+  },
+  {
+   "name": "Valverde",
+   "code": "DO-27",
+   "lat": 19.552,
+   "lng": -71.078
+  },
+  {
+   "name": "Monseñor Nouel",
+   "code": "DO-28",
+   "lat": 18.937,
+   "lng": -70.409
+  },
+  {
+   "name": "Monte Plata",
+   "code": "DO-29",
+   "lat": 18.807,
+   "lng": -69.784
+  },
+  {
+   "name": "Hato Mayor",
+   "code": "DO-30",
+   "lat": 18.763,
+   "lng": -69.257
+  },
+  {
+   "name": "San José de Ocoa",
+   "code": "DO-31",
+   "lat": 18.546,
+   "lng": -70.506
+  },
+  {
+   "name": "Santo Domingo",
+   "code": "DO-32",
+   "lat": 18.55,
+   "lng": -69.85
+  }
+ ],
+ "municipalities": [
+  {
+   "province": "Distrito Nacional",
+   "name": "Santo Domingo de Guzmán",
+   "kind": "municipio",
+   "lat": 18.48,
+   "lng": -69.93
+  },
+  {
+   "province": "Azua",
+   "name": "Azua de Compostela",
+   "kind": "municipio",
+   "lat": 18.4532,
+   "lng": -70.7349
+  },
+  {
+   "province": "Azua",
+   "name": "Estebanía",
+   "kind": "municipio",
+   "lat": 18.4577,
+   "lng": -70.6435
+  },
+  {
+   "province": "Azua",
+   "name": "Guayabal",
+   "kind": "municipio",
+   "lat": 18.7496,
+   "lng": -70.8369
+  },
+  {
+   "province": "Azua",
+   "name": "Las Charcas",
+   "kind": "municipio",
+   "lat": 18.4503,
+   "lng": -70.6172
+  },
+  {
+   "province": "Azua",
+   "name": "Las Yayas de Viajama",
+   "kind": "municipio",
+   "lat": 18.6071,
+   "lng": -70.9275
+  },
+  {
+   "province": "Azua",
+   "name": "Padre Las Casas",
+   "kind": "municipio",
+   "lat": 18.7317,
+   "lng": -70.9392
+  },
+  {
+   "province": "Azua",
+   "name": "Peralta",
+   "kind": "municipio",
+   "lat": 18.5816,
+   "lng": -70.7703
+  },
+  {
+   "province": "Azua",
+   "name": "Pueblo Viejo",
+   "kind": "municipio",
+   "lat": 18.4,
+   "lng": -70.7677
+  },
+  {
+   "province": "Azua",
+   "name": "Sabana Yegua",
+   "kind": "municipio",
+   "lat": 18.7167,
+   "lng": -71.0167
+  },
+  {
+   "province": "Azua",
+   "name": "Tábara Arriba",
+   "kind": "municipio",
+   "lat": 18.57,
+   "lng": -70.8798
+  },
+  {
+   "province": "Bahoruco",
+   "name": "Neiba",
+   "kind": "municipio",
+   "lat": 18.4898,
+   "lng": -71.4189
+  },
+  {
+   "province": "Bahoruco",
+   "name": "Galván",
+   "kind": "municipio",
+   "lat": 18.5023,
+   "lng": -71.3427
+  },
+  {
+   "province": "Bahoruco",
+   "name": "Los Ríos",
+   "kind": "municipio",
+   "lat": 18.5213,
+   "lng": -71.5911
+  },
+  {
+   "province": "Bahoruco",
+   "name": "Tamayo",
+   "kind": "municipio",
+   "lat": 18.3947,
+   "lng": -71.2029
+  },
+  {
+   "province": "Bahoruco",
+   "name": "Villa Jaragua",
+   "kind": "municipio",
+   "lat": 18.4908,
+   "lng": -71.4838
+  },
+  {
+   "province": "Barahona",
+   "name": "Santa Cruz de Barahona",
+   "kind": "municipio",
+   "lat": 18.2086,
+   "lng": -71.1007
+  },
+  {
+   "province": "Barahona",
+   "name": "Cabral",
+   "kind": "municipio",
+   "lat": 18.25,
+   "lng": -71.2167
+  },
+  {
+   "province": "Barahona",
+   "name": "El Peñón",
+   "kind": "municipio",
+   "lat": 18.2964,
+   "lng": -71.1841
+  },
+  {
+   "province": "Barahona",
+   "name": "Enriquillo",
+   "kind": "municipio",
+   "lat": 17.9,
+   "lng": -71.2333
+  },
+  {
+   "province": "Barahona",
+   "name": "Fundación",
+   "kind": "municipio",
+   "lat": 18.2867,
+   "lng": -71.1815
+  },
+  {
+   "province": "Barahona",
+   "name": "Jaquimeyes",
+   "kind": "municipio",
+   "lat": 18.3117,
+   "lng": -71.1615
+  },
+  {
+   "province": "Barahona",
+   "name": "La Ciénaga",
+   "kind": "municipio",
+   "lat": 18.0686,
+   "lng": -71.1065
+  },
+  {
+   "province": "Barahona",
+   "name": "Las Salinas",
+   "kind": "municipio",
+   "lat": 18.2749,
+   "lng": -71.316
+  },
+  {
+   "province": "Barahona",
+   "name": "Paraíso",
+   "kind": "municipio",
+   "lat": 17.9917,
+   "lng": -71.1653
+  },
+  {
+   "province": "Barahona",
+   "name": "Polo",
+   "kind": "municipio",
+   "lat": 18.0787,
+   "lng": -71.2872
+  },
+  {
+   "province": "Barahona",
+   "name": "Vicente Noble",
+   "kind": "municipio",
+   "lat": 18.3844,
+   "lng": -71.1801
+  },
+  {
+   "province": "Dajabón",
+   "name": "Dajabón",
+   "kind": "municipio",
+   "lat": 19.5481,
+   "lng": -71.7082
+  },
+  {
+   "province": "Dajabón",
+   "name": "El Pino",
+   "kind": "municipio",
+   "lat": 19.4354,
+   "lng": -71.4754
+  },
+  {
+   "province": "Dajabón",
+   "name": "Loma de Cabrera",
+   "kind": "municipio",
+   "lat": 19.4333,
+   "lng": -71.6
+  },
+  {
+   "province": "Dajabón",
+   "name": "Partido",
+   "kind": "municipio",
+   "lat": 19.484,
+   "lng": -71.5473
+  },
+  {
+   "province": "Dajabón",
+   "name": "Restauración",
+   "kind": "municipio",
+   "lat": 19.3153,
+   "lng": -71.6924
+  },
+  {
+   "province": "Duarte",
+   "name": "San Francisco de Macorís",
+   "kind": "municipio",
+   "lat": 19.2938,
+   "lng": -70.2528
+  },
+  {
+   "province": "Duarte",
+   "name": "Arenoso",
+   "kind": "municipio",
+   "lat": 19.1873,
+   "lng": -69.8592
+  },
+  {
+   "province": "Duarte",
+   "name": "Castillo",
+   "kind": "municipio",
+   "lat": 19.2082,
+   "lng": -70.0273
+  },
+  {
+   "province": "Duarte",
+   "name": "Eugenio María de Hostos",
+   "kind": "municipio",
+   "lat": 19.183,
+   "lng": -70.018
+  },
+  {
+   "province": "Duarte",
+   "name": "Las Guáranas",
+   "kind": "municipio",
+   "lat": 19.1931,
+   "lng": -70.2083
+  },
+  {
+   "province": "Duarte",
+   "name": "Pimentel",
+   "kind": "municipio",
+   "lat": 19.1842,
+   "lng": -70.1088
+  },
+  {
+   "province": "Duarte",
+   "name": "Villa Riva",
+   "kind": "municipio",
+   "lat": 19.1807,
+   "lng": -69.9132
+  },
+  {
+   "province": "Elías Piña",
+   "name": "Comendador",
+   "kind": "municipio",
+   "lat": 18.8775,
+   "lng": -71.7032
+  },
+  {
+   "province": "Elías Piña",
+   "name": "Bánica",
+   "kind": "municipio",
+   "lat": 19.0824,
+   "lng": -71.7054
+  },
+  {
+   "province": "Elías Piña",
+   "name": "El Llano",
+   "kind": "municipio",
+   "lat": 18.8167,
+   "lng": -71.6333
+  },
+  {
+   "province": "Elías Piña",
+   "name": "Hondo Valle",
+   "kind": "municipio",
+   "lat": 18.716,
+   "lng": -71.6951
+  },
+  {
+   "province": "Elías Piña",
+   "name": "Juan Santiago",
+   "kind": "municipio",
+   "lat": 18.7034,
+   "lng": -71.5897
+  },
+  {
+   "province": "Elías Piña",
+   "name": "Pedro Santana",
+   "kind": "municipio",
+   "lat": 19.1051,
+   "lng": -71.695
+  },
+  {
+   "province": "El Seibo",
+   "name": "Santa Cruz de El Seibo",
+   "kind": "municipio",
+   "lat": 18.7648,
+   "lng": -69.0399
+  },
+  {
+   "province": "El Seibo",
+   "name": "Miches",
+   "kind": "municipio",
+   "lat": 18.9836,
+   "lng": -69.0476
+  },
+  {
+   "province": "Espaillat",
+   "name": "Moca",
+   "kind": "municipio",
+   "lat": 19.3929,
+   "lng": -70.5235
+  },
+  {
+   "province": "Espaillat",
+   "name": "Cayetano Germosén",
+   "kind": "municipio",
+   "lat": 19.3441,
+   "lng": -70.4834
+  },
+  {
+   "province": "Espaillat",
+   "name": "Gaspar Hernández",
+   "kind": "municipio",
+   "lat": 19.6275,
+   "lng": -70.2777
+  },
+  {
+   "province": "Espaillat",
+   "name": "Jamao al Norte",
+   "kind": "municipio",
+   "lat": 19.6355,
+   "lng": -70.4466
+  },
+  {
+   "province": "Espaillat",
+   "name": "San Víctor",
+   "kind": "municipio",
+   "lat": 19.4667,
+   "lng": -70.5333
+  },
+  {
+   "province": "Independencia",
+   "name": "Jimaní",
+   "kind": "municipio",
+   "lat": 18.4877,
+   "lng": -71.8515
+  },
+  {
+   "province": "Independencia",
+   "name": "Cristóbal",
+   "kind": "municipio",
+   "lat": 18.294,
+   "lng": -71.293
+  },
+  {
+   "province": "Independencia",
+   "name": "Duvergé",
+   "kind": "municipio",
+   "lat": 18.3784,
+   "lng": -71.5247
+  },
+  {
+   "province": "Independencia",
+   "name": "La Descubierta",
+   "kind": "municipio",
+   "lat": 18.5705,
+   "lng": -71.7297
+  },
+  {
+   "province": "Independencia",
+   "name": "Mella",
+   "kind": "municipio",
+   "lat": 18.3587,
+   "lng": -71.4172
+  },
+  {
+   "province": "Independencia",
+   "name": "Postrer Río",
+   "kind": "municipio",
+   "lat": 18.5437,
+   "lng": -71.6356
+  },
+  {
+   "province": "La Altagracia",
+   "name": "Salvaleón de Higüey",
+   "kind": "municipio",
+   "lat": 18.615,
+   "lng": -68.708
+  },
+  {
+   "province": "La Altagracia",
+   "name": "San Rafael del Yuma",
+   "kind": "municipio",
+   "lat": 18.4299,
+   "lng": -68.6739
+  },
+  {
+   "province": "La Romana",
+   "name": "La Romana",
+   "kind": "municipio",
+   "lat": 18.427,
+   "lng": -68.972
+  },
+  {
+   "province": "La Romana",
+   "name": "Guaymate",
+   "kind": "municipio",
+   "lat": 18.5879,
+   "lng": -68.9787
+  },
+  {
+   "province": "La Romana",
+   "name": "Villa Hermosa",
+   "kind": "municipio",
+   "lat": 18.43,
+   "lng": -68.92
+  },
+  {
+   "province": "La Vega",
+   "name": "Concepción de La Vega",
+   "kind": "municipio",
+   "lat": 19.222,
+   "lng": -70.529
+  },
+  {
+   "province": "La Vega",
+   "name": "Constanza",
+   "kind": "municipio",
+   "lat": 18.9092,
+   "lng": -70.745
+  },
+  {
+   "province": "La Vega",
+   "name": "Jarabacoa",
+   "kind": "municipio",
+   "lat": 19.1168,
+   "lng": -70.6359
+  },
+  {
+   "province": "La Vega",
+   "name": "Jima Abajo",
+   "kind": "municipio",
+   "lat": 19.1329,
+   "lng": -70.3761
+  },
+  {
+   "province": "María Trinidad Sánchez",
+   "name": "Nagua",
+   "kind": "municipio",
+   "lat": 19.3832,
+   "lng": -69.8474
+  },
+  {
+   "province": "María Trinidad Sánchez",
+   "name": "Cabrera",
+   "kind": "municipio",
+   "lat": 19.6426,
+   "lng": -69.9049
+  },
+  {
+   "province": "María Trinidad Sánchez",
+   "name": "El Factor",
+   "kind": "municipio",
+   "lat": 19.3183,
+   "lng": -69.8883
+  },
+  {
+   "province": "María Trinidad Sánchez",
+   "name": "Río San Juan",
+   "kind": "municipio",
+   "lat": 19.6439,
+   "lng": -70.0764
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "San Fernando de Monte Cristi",
+   "kind": "municipio",
+   "lat": 19.848,
+   "lng": -71.646
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "Castañuelas",
+   "kind": "municipio",
+   "lat": 19.7139,
+   "lng": -71.4988
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "Guayubín",
+   "kind": "municipio",
+   "lat": 19.6167,
+   "lng": -71.3333
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "Las Matas de Santa Cruz",
+   "kind": "municipio",
+   "lat": 19.6712,
+   "lng": -71.5047
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "Pepillo Salcedo",
+   "kind": "municipio",
+   "lat": 19.6984,
+   "lng": -71.7451
+  },
+  {
+   "province": "Monte Cristi",
+   "name": "Villa Vásquez",
+   "kind": "municipio",
+   "lat": 19.7411,
+   "lng": -71.4464
+  },
+  {
+   "province": "Pedernales",
+   "name": "Pedernales",
+   "kind": "municipio",
+   "lat": 18.0356,
+   "lng": -71.7467
+  },
+  {
+   "province": "Pedernales",
+   "name": "Oviedo",
+   "kind": "municipio",
+   "lat": 17.8014,
+   "lng": -71.401
+  },
+  {
+   "province": "Peravia",
+   "name": "Baní",
+   "kind": "municipio",
+   "lat": 18.28,
+   "lng": -70.331
+  },
+  {
+   "province": "Peravia",
+   "name": "Matanzas",
+   "kind": "municipio",
+   "lat": 18.243,
+   "lng": -70.4177
+  },
+  {
+   "province": "Peravia",
+   "name": "Nizao",
+   "kind": "municipio",
+   "lat": 18.247,
+   "lng": -70.2105
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "San Felipe de Puerto Plata",
+   "kind": "municipio",
+   "lat": 19.793,
+   "lng": -70.688
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Altamira",
+   "kind": "municipio",
+   "lat": 19.6773,
+   "lng": -70.8443
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Guananico",
+   "kind": "municipio",
+   "lat": 19.7269,
+   "lng": -70.9229
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Imbert",
+   "kind": "municipio",
+   "lat": 19.7537,
+   "lng": -70.8291
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Los Hidalgos",
+   "kind": "municipio",
+   "lat": 19.7333,
+   "lng": -71.0333
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Luperón",
+   "kind": "municipio",
+   "lat": 19.8913,
+   "lng": -70.962
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Sosúa",
+   "kind": "municipio",
+   "lat": 19.7522,
+   "lng": -70.5199
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Villa Isabela",
+   "kind": "municipio",
+   "lat": 19.8156,
+   "lng": -71.0606
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "Villa Montellano",
+   "kind": "municipio",
+   "lat": 19.74,
+   "lng": -70.6
+  },
+  {
+   "province": "Hermanas Mirabal",
+   "name": "Salcedo",
+   "kind": "municipio",
+   "lat": 19.3777,
+   "lng": -70.4172
+  },
+  {
+   "province": "Hermanas Mirabal",
+   "name": "Tenares",
+   "kind": "municipio",
+   "lat": 19.3744,
+   "lng": -70.3509
+  },
+  {
+   "province": "Hermanas Mirabal",
+   "name": "Villa Tapia",
+   "kind": "municipio",
+   "lat": 19.3008,
+   "lng": -70.422
+  },
+  {
+   "province": "Samaná",
+   "name": "Santa Bárbara de Samaná",
+   "kind": "municipio",
+   "lat": 19.204,
+   "lng": -69.3341
+  },
+  {
+   "province": "Samaná",
+   "name": "Las Terrenas",
+   "kind": "municipio",
+   "lat": 19.311,
+   "lng": -69.5428
+  },
+  {
+   "province": "Samaná",
+   "name": "Sánchez",
+   "kind": "municipio",
+   "lat": 19.2281,
+   "lng": -69.6137
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "San Cristóbal",
+   "kind": "municipio",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Bajos de Haina",
+   "kind": "municipio",
+   "lat": 18.4167,
+   "lng": -70.0333
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Cambita Garabitos",
+   "kind": "municipio",
+   "lat": 18.4546,
+   "lng": -70.1991
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Los Cacaos",
+   "kind": "municipio",
+   "lat": 18.62,
+   "lng": -70.28
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Sabana Grande de Palenque",
+   "kind": "municipio",
+   "lat": 18.2626,
+   "lng": -70.1482
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "San Gregorio de Nigua",
+   "kind": "municipio",
+   "lat": 18.3834,
+   "lng": -70.0524
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Villa Altagracia",
+   "kind": "municipio",
+   "lat": 18.673,
+   "lng": -70.171
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Yaguate",
+   "kind": "municipio",
+   "lat": 18.3353,
+   "lng": -70.1811
+  },
+  {
+   "province": "San Juan",
+   "name": "San Juan de la Maguana",
+   "kind": "municipio",
+   "lat": 18.8064,
+   "lng": -71.2263
+  },
+  {
+   "province": "San Juan",
+   "name": "Bohechío",
+   "kind": "municipio",
+   "lat": 18.7752,
+   "lng": -70.9889
+  },
+  {
+   "province": "San Juan",
+   "name": "El Cercado",
+   "kind": "municipio",
+   "lat": 18.7167,
+   "lng": -71.5167
+  },
+  {
+   "province": "San Juan",
+   "name": "Juan de Herrera",
+   "kind": "municipio",
+   "lat": 18.874,
+   "lng": -71.2383
+  },
+  {
+   "province": "San Juan",
+   "name": "Las Matas de Farfán",
+   "kind": "municipio",
+   "lat": 18.8731,
+   "lng": -71.5166
+  },
+  {
+   "province": "San Juan",
+   "name": "Vallejuelo",
+   "kind": "municipio",
+   "lat": 18.6535,
+   "lng": -71.3343
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "San Pedro de Macorís",
+   "kind": "municipio",
+   "lat": 18.461,
+   "lng": -69.308
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "Consuelo",
+   "kind": "municipio",
+   "lat": 18.55,
+   "lng": -69.3
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "Guayacanes",
+   "kind": "municipio",
+   "lat": 18.4249,
+   "lng": -69.4576
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "Quisqueya",
+   "kind": "municipio",
+   "lat": 18.5554,
+   "lng": -69.4081
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "Ramón Santana",
+   "kind": "municipio",
+   "lat": 18.5422,
+   "lng": -69.1798
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "San José de Los Llanos",
+   "kind": "municipio",
+   "lat": 18.6203,
+   "lng": -69.4958
+  },
+  {
+   "province": "Sánchez Ramírez",
+   "name": "Cotuí",
+   "kind": "municipio",
+   "lat": 19.0539,
+   "lng": -70.1512
+  },
+  {
+   "province": "Sánchez Ramírez",
+   "name": "Cevicos",
+   "kind": "municipio",
+   "lat": 19.0045,
+   "lng": -69.979
+  },
+  {
+   "province": "Sánchez Ramírez",
+   "name": "Fantino",
+   "kind": "municipio",
+   "lat": 19.1215,
+   "lng": -70.2997
+  },
+  {
+   "province": "Sánchez Ramírez",
+   "name": "La Mata",
+   "kind": "municipio",
+   "lat": 19.1,
+   "lng": -70.1667
+  },
+  {
+   "province": "Santiago",
+   "name": "Santiago de los Caballeros",
+   "kind": "municipio",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "province": "Santiago",
+   "name": "Baitoa",
+   "kind": "municipio",
+   "lat": 19.3251,
+   "lng": -70.7036
+  },
+  {
+   "province": "Santiago",
+   "name": "Jánico",
+   "kind": "municipio",
+   "lat": 19.3167,
+   "lng": -70.8
+  },
+  {
+   "province": "Santiago",
+   "name": "Licey al Medio",
+   "kind": "municipio",
+   "lat": 19.4333,
+   "lng": -70.6
+  },
+  {
+   "province": "Santiago",
+   "name": "Puñal",
+   "kind": "municipio",
+   "lat": 19.3833,
+   "lng": -70.6333
+  },
+  {
+   "province": "Santiago",
+   "name": "Sabana Iglesia",
+   "kind": "municipio",
+   "lat": 19.3211,
+   "lng": -70.7599
+  },
+  {
+   "province": "Santiago",
+   "name": "San José de las Matas",
+   "kind": "municipio",
+   "lat": 19.3392,
+   "lng": -70.9382
+  },
+  {
+   "province": "Santiago",
+   "name": "Tamboril",
+   "kind": "municipio",
+   "lat": 19.4854,
+   "lng": -70.611
+  },
+  {
+   "province": "Santiago",
+   "name": "Villa Bisonó",
+   "kind": "municipio",
+   "lat": 19.5638,
+   "lng": -70.8758
+  },
+  {
+   "province": "Santiago",
+   "name": "Villa González",
+   "kind": "municipio",
+   "lat": 19.5406,
+   "lng": -70.7885
+  },
+  {
+   "province": "Santiago Rodríguez",
+   "name": "San Ignacio de Sabaneta",
+   "kind": "municipio",
+   "lat": 19.4784,
+   "lng": -71.3393
+  },
+  {
+   "province": "Santiago Rodríguez",
+   "name": "Los Almácigos",
+   "kind": "municipio",
+   "lat": 19.4,
+   "lng": -71.45
+  },
+  {
+   "province": "Santiago Rodríguez",
+   "name": "Monción",
+   "kind": "municipio",
+   "lat": 19.4108,
+   "lng": -71.1526
+  },
+  {
+   "province": "Valverde",
+   "name": "Santa Cruz de Mao",
+   "kind": "municipio",
+   "lat": 19.5491,
+   "lng": -71.0781
+  },
+  {
+   "province": "Valverde",
+   "name": "Esperanza",
+   "kind": "municipio",
+   "lat": 19.5847,
+   "lng": -70.9849
+  },
+  {
+   "province": "Valverde",
+   "name": "Laguna Salada",
+   "kind": "municipio",
+   "lat": 19.6504,
+   "lng": -71.0843
+  },
+  {
+   "province": "Monseñor Nouel",
+   "name": "Bonao",
+   "kind": "municipio",
+   "lat": 18.9415,
+   "lng": -70.4111
+  },
+  {
+   "province": "Monseñor Nouel",
+   "name": "Maimón",
+   "kind": "municipio",
+   "lat": 18.89,
+   "lng": -70.27
+  },
+  {
+   "province": "Monseñor Nouel",
+   "name": "Piedra Blanca",
+   "kind": "municipio",
+   "lat": 18.8443,
+   "lng": -70.3169
+  },
+  {
+   "province": "Monte Plata",
+   "name": "Monte Plata",
+   "kind": "municipio",
+   "lat": 18.8075,
+   "lng": -69.7843
+  },
+  {
+   "province": "Monte Plata",
+   "name": "Bayaguana",
+   "kind": "municipio",
+   "lat": 18.7503,
+   "lng": -69.6352
+  },
+  {
+   "province": "Monte Plata",
+   "name": "Peralvillo",
+   "kind": "municipio",
+   "lat": 18.82,
+   "lng": -69.95
+  },
+  {
+   "province": "Monte Plata",
+   "name": "Sabana Grande de Boyá",
+   "kind": "municipio",
+   "lat": 18.945,
+   "lng": -69.7933
+  },
+  {
+   "province": "Monte Plata",
+   "name": "Yamasá",
+   "kind": "municipio",
+   "lat": 18.7732,
+   "lng": -70.0258
+  },
+  {
+   "province": "Hato Mayor",
+   "name": "Hato Mayor del Rey",
+   "kind": "municipio",
+   "lat": 18.7658,
+   "lng": -69.2558
+  },
+  {
+   "province": "Hato Mayor",
+   "name": "El Valle",
+   "kind": "municipio",
+   "lat": 18.9757,
+   "lng": -69.3783
+  },
+  {
+   "province": "Hato Mayor",
+   "name": "Sabana de la Mar",
+   "kind": "municipio",
+   "lat": 19.0593,
+   "lng": -69.3884
+  },
+  {
+   "province": "San José de Ocoa",
+   "name": "San José de Ocoa",
+   "kind": "municipio",
+   "lat": 18.5468,
+   "lng": -70.5069
+  },
+  {
+   "province": "San José de Ocoa",
+   "name": "Rancho Arriba",
+   "kind": "municipio",
+   "lat": 18.7,
+   "lng": -70.45
+  },
+  {
+   "province": "San José de Ocoa",
+   "name": "Sabana Larga",
+   "kind": "municipio",
+   "lat": 18.59,
+   "lng": -70.5
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Este",
+   "kind": "municipio",
+   "lat": 18.4885,
+   "lng": -69.857
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Boca Chica",
+   "kind": "municipio",
+   "lat": 18.4539,
+   "lng": -69.6064
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Los Alcarrizos",
+   "kind": "municipio",
+   "lat": 18.5167,
+   "lng": -70.0167
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Pedro Brand",
+   "kind": "municipio",
+   "lat": 18.5667,
+   "lng": -70.0911
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "San Antonio de Guerra",
+   "kind": "municipio",
+   "lat": 18.55,
+   "lng": -69.7
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Norte",
+   "kind": "municipio",
+   "lat": 18.556,
+   "lng": -69.9
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Oeste",
+   "kind": "municipio",
+   "lat": 18.497,
+   "lng": -69.99
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Pantoja",
+   "kind": "distrito_municipal",
+   "lat": 18.508,
+   "lng": -69.999
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "La Caleta",
+   "kind": "distrito_municipal",
+   "lat": 18.463,
+   "lng": -69.685
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "San Luis",
+   "kind": "distrito_municipal",
+   "lat": 18.507,
+   "lng": -69.765
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "La Victoria",
+   "kind": "distrito_municipal",
+   "lat": 18.593,
+   "lng": -69.85
+  },
+  {
+   "province": "La Altagracia",
+   "name": "Verón-Punta Cana",
+   "kind": "distrito_municipal",
+   "lat": 18.582,
+   "lng": -68.406
+  }
+ ],
+ "sectors": [
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Piantini",
+   "lat": 18.4715,
+   "lng": -69.94
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Naco",
+   "lat": 18.476,
+   "lng": -69.93
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Gazcue",
+   "lat": 18.466,
+   "lng": -69.901
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Bella Vista",
+   "lat": 18.456,
+   "lng": -69.94
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Zona Colonial",
+   "lat": 18.473,
+   "lng": -69.884
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Los Prados",
+   "lat": 18.488,
+   "lng": -69.946
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Cristo Rey",
+   "lat": 18.495,
+   "lng": -69.93
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Villa Juana",
+   "lat": 18.488,
+   "lng": -69.908
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Arroyo Hondo",
+   "lat": 18.505,
+   "lng": -69.955
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Evaristo Morales",
+   "lat": 18.48,
+   "lng": -69.941
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Los Mina",
+   "lat": 18.495,
+   "lng": -69.873
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Alma Rosa",
+   "lat": 18.488,
+   "lng": -69.856
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Ensanche Ozama",
+   "lat": 18.483,
+   "lng": -69.87
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Invivienda",
+   "lat": 18.505,
+   "lng": -69.818
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "San Isidro",
+   "lat": 18.503,
+   "lng": -69.77
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Villa Faro",
+   "lat": 18.49,
+   "lng": -69.838
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Los Tres Brazos",
+   "lat": 18.51,
+   "lng": -69.865
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Las Américas",
+   "lat": 18.47,
+   "lng": -69.82
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Herrera",
+   "lat": 18.4766,
+   "lng": -69.9653
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Manoguayabo",
+   "lat": 18.49,
+   "lng": -70.005
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Las Caobas",
+   "lat": 18.497,
+   "lng": -69.983
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Km 9 Autopista Duarte",
+   "lat": 18.493,
+   "lng": -69.968
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Bayona",
+   "lat": 18.458,
+   "lng": -69.99
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Engombe",
+   "lat": 18.46,
+   "lng": -70
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Villa Mella",
+   "lat": 18.5539,
+   "lng": -69.9029
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Sabana Perdida",
+   "lat": 18.548,
+   "lng": -69.885
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Guaricano",
+   "lat": 18.532,
+   "lng": -69.918
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Ciudad Modelo",
+   "lat": 18.57,
+   "lng": -69.885
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Los Alcarrizos Centro",
+   "lat": 18.5167,
+   "lng": -70.0167
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Km 14 Autopista Duarte",
+   "lat": 18.51,
+   "lng": -70.004
+  },
+  {
+   "municipality": "Boca Chica",
+   "name": "Boca Chica Centro",
+   "lat": 18.4539,
+   "lng": -69.6064
+  },
+  {
+   "municipality": "Boca Chica",
+   "name": "Andrés",
+   "lat": 18.444,
+   "lng": -69.627
+  },
+  {
+   "municipality": "San Antonio de Guerra",
+   "name": "Guerra Centro",
+   "lat": 18.55,
+   "lng": -69.7
+  },
+  {
+   "municipality": "Bajos de Haina",
+   "name": "Haina Centro",
+   "lat": 18.4167,
+   "lng": -70.0333
+  },
+  {
+   "municipality": "San Cristóbal",
+   "name": "San Cristóbal Centro",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Centro de Santiago",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Gurabo",
+   "lat": 19.478,
+   "lng": -70.67
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Los Cacicazgos",
+   "lat": 18.4535,
+   "lng": -69.9555
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Buenos Aires",
+   "lat": 18.482,
+   "lng": -69.975
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Pueblo Nuevo",
+   "lat": 18.526,
+   "lng": -70.014
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Savica",
+   "lat": 18.5085,
+   "lng": -70.026
+  },
+  {
+   "municipality": "Boca Chica",
+   "name": "La Caleta",
+   "lat": 18.463,
+   "lng": -69.685
+  },
+  {
+   "municipality": "Bajos de Haina",
+   "name": "Piedra Blanca",
+   "lat": 18.43,
+   "lng": -70.045
+  },
+  {
+   "municipality": "Bajos de Haina",
+   "name": "El Carril",
+   "lat": 18.45,
+   "lng": -70.05
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Los Jardines",
+   "lat": 19.459,
+   "lng": -70.687
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Cienfuegos",
+   "lat": 19.475,
+   "lng": -70.73
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Villa Olga",
+   "lat": 19.4555,
+   "lng": -70.6975
+  }
+ ]
+}

@@ -5,12 +5,13 @@ const { db } = require('./db');
 const { createApp } = require('./app');
 const { attachRealtime } = require('./realtime/socket');
 const { pruneLocations } = require('./modules/couriers/service');
-const { ensureFirstAdmin, loadDemoDataIfEmpty } = require('./db/bootstrap');
+const { ensureFirstAdmin, loadDemoDataIfEmpty, ensureBaseGeography } = require('./db/bootstrap');
 
 async function main() {
   await db.migrate.latest();
   await loadDemoDataIfEmpty();
   await ensureFirstAdmin();
+  await ensureBaseGeography();
   const app = createApp();
   const server = http.createServer(app);
   attachRealtime(server);

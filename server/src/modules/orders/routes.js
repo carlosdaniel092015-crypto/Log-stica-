@@ -34,7 +34,10 @@ const createSchema = z
     customer_id: z.string().uuid().optional(),
     customer: z.object({
       name: z.string().trim().min(2).max(160),
-      phone: z.string().trim().min(7).max(40),
+      // Opcional: si se escribe, debe tener al menos 7 dígitos.
+      phone: z.string().trim().max(40).nullable().optional()
+        .transform((v) => v || null)
+        .refine((v) => !v || v.replace(/\D/g, '').length >= 7, 'teléfono no válido'),
       whatsapp: z.string().trim().max(40).nullable().optional(),
       email: z.string().trim().toLowerCase().email().nullable().optional().or(z.literal('')),
     }).optional(),

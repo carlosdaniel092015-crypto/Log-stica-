@@ -52,8 +52,8 @@ export default function CustomerDetail() {
           <p>Registrado {dateTime(c.created_at)}</p>
         </div>
         <div className="row-wrap">
-          <a className="btn" href={`tel:${c.phone}`}><Icon name="phone" /> Llamar</a>
-          <a className="btn" href={whatsappUrl(c.whatsapp || c.phone)} target="_blank" rel="noreferrer"><Icon name="whatsapp" /> WhatsApp</a>
+          {c.phone && <a className="btn" href={`tel:${c.phone}`}><Icon name="phone" /> Llamar</a>}
+          {(c.whatsapp || c.phone) && <a className="btn" href={whatsappUrl(c.whatsapp || c.phone)} target="_blank" rel="noreferrer"><Icon name="whatsapp" /> WhatsApp</a>}
           <button className="btn" onClick={() => setEditing(true)}><Icon name="edit" /> Editar</button>
           <button className="btn" disabled={busy} onClick={() => run(async () => { await api.patch(`/api/customers/${c.id}/active`, { active: !c.active }); reload(true); }, c.active ? 'Cliente desactivado.' : 'Cliente activado.')}>{c.active ? 'Desactivar' : 'Activar'}</button>
         </div>

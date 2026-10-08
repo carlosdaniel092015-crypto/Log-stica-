@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api';
 import { money, ZONE_KINDS } from '../../lib/format';
 import { SD_CENTER } from '../../lib/maps';
-import { useAsync } from '../../components/ui';
+import { useAction, useAsync } from '../../components/ui';
 import { MapView } from '../../components/Map';
 import { fitZone, zoneShapes, ZoneFormModal } from '../../components/ZoneEditor';
 import Icon from '../../components/Icon';
@@ -33,6 +33,11 @@ export default function ZonesMap() {
   useEffect(draw, [draw]);
 
   const editable = can(user, 'zones.manage');
+  const [busy, run] = useAction();
+  const loadSuggested = async () => {
+    const r = await run(() => api.post('/api/zones/load-suggested'), 'Zonas sugeridas creadas. Ajusta los precios a los tuyos.');
+    if (r) zones.reload(true);
+  };
 
   return (
     <div className="stack">
@@ -60,6 +65,13 @@ export default function ZonesMap() {
             <h3>Zonas</h3>
             {editable && <button className="btn btn-sm btn-primary" onClick={() => setEditing({})}><Icon name="plus" /> Nueva zona</button>}
           </div>
+          {editable && zones.data?.length === 0 && (
+            <div className="stack-sm" style={{ padding: 16, textAlign: 'center' }}>
+              <div className="bold">Aún no tienes zonas</div>
+              <div className="small muted">Carga tarifas sugeridas para Gran Santo Domingo, San Cristóbal y Santiago y luego ajusta los precios.</div>
+              <button className="btn btn-primary" disabled={busy} onClick={loadSuggested}>Cargar tarifas sugeridas</button>
+            </div>
+          )}
           {(zones.data || []).map((z) => (
             <div key={z.id} className="list-item clickable" style={{ opacity: z.active ? 1 : 0.5 }} onClick={() => fitZone(hRef.current, z)}>
               <span className="color-dot" style={{ background: z.active ? z.color : 'var(--border-strong)', width: 14, height: 14 }} />
