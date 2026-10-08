@@ -38,6 +38,20 @@ router.get('/tree', ah(async (_req, res) => {
   res.json({ provinces: provinces.map(mapRow), municipalities: municipalities.map(mapRow), sectors: sectors.map(mapRow) });
 }));
 
+/** Tarifa que aplica a cada sector de un municipio (según su punto central). */
+router.get('/sector-prices', ah(async (req, res) => {
+  const { quote } = require('../zones/service');
+  const muni = await db('municipalities').where({ id: String(req.query.municipality_id || '') }).first();
+  if (!muni) throw notFound();
+  const sectors = await db('sectors').where({ municipality_id: muni.id }).orderBy('name');
+  const out = [];
+  for (const s of sectors) {
+    const q = await quote({ lat: s.lat, lng: s.lng, sector_id: s.id, municipality_id: muni.id, province_id: muni.province_id });
+    out.push({ sector_id: s.id, fee: q.fee, zone_name: q.zone?.name || null, zone_kind: q.zone?.kind || null });
+  }
+  res.json(out);
+}));
+
 router.post('/resolve', validate(z.object({ lat: z.number(), lng: z.number(), components: z.array(z.any()).optional() })), ah(async (req, res) => {
   res.json(await resolveAdministrative(req.body));
 }));

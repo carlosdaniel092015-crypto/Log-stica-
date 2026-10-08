@@ -28,7 +28,7 @@ const password = z.string().min(8, 'debe tener al menos 8 caracteres').max(100);
 router.post(
   '/login',
   loginLimiter,
-  validate(z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(100) })),
+  validate(z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(100), remember: z.boolean().optional() })),
   ah(async (req, res) => {
     const user = await db('users').where({ email: req.body.email }).first();
     // Comparación siempre ejecutada para no revelar si el correo existe (timing).
@@ -41,7 +41,7 @@ router.post(
     // Los clientes no tienen cuenta: siguen su pedido solo con el enlace privado.
     if (!['admin', 'dispatcher', 'courier'].includes(user.role_id)) throw forbidden('Esta cuenta no tiene acceso a la plataforma.');
     await db('users').where({ id: user.id }).update({ last_login_at: now() });
-    setSessionCookie(res, signSession(user));
+    setSessionCookie(res, signSession(user), { remember: req.body.remember !== false });
     req.user = { id: user.id, name: user.name };
     await audit(req, { action: 'auth.login', entity: 'user', entityId: user.id });
     res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role_id } });

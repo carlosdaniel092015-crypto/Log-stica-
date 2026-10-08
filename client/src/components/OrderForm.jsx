@@ -3,7 +3,7 @@ import { api, qs } from '../lib/api';
 import { money, PAYMENT_METHODS, PAYMENT_STATUS, ZONE_KINDS } from '../lib/format';
 import AddressPicker from './AddressPicker';
 import Icon from './Icon';
-import { Field, Modal, useAsync } from './ui';
+import { Avatar, Field, Modal, useAsync } from './ui';
 import { can, useApp } from '../context/AppContext';
 import { ItemsEditor } from '../pages/admin/Inventory';
 
@@ -66,6 +66,7 @@ export function QuoteBox({ quote, loading }) {
 /** Formulario para crear un pedido con detección automática de zona y precio. */
 export default function OrderForm({ onClose, onCreated }) {
   const { user, currency, toast } = useApp();
+  const [step, setStep] = useState(1);
   const [mode, setMode] = useState('existing');
   const [search, setSearch] = useState('');
   const [customer, setCustomer] = useState(null);
@@ -114,8 +115,23 @@ export default function OrderForm({ onClose, onCreated }) {
     return (validItems.length ? itemsSubtotal : Number(form.subtotal) || 0) + f;
   }, [form.subtotal, overrideFee, fee, quote, validItems.length, itemsSubtotal]);
 
+  const stepError = (n) => {
+    if (n === 1) {
+      if (mode === 'existing' && !customer) return 'Selecciona un cliente o registra uno nuevo.';
+      if (mode === 'new' && (!newCustomer.name.trim() || newCustomer.phone.trim().length < 7)) return 'Indica el nombre y el teléfono del cliente.';
+    }
+    if (n === 2 && !address.formatted_address) return 'Indica la dirección de entrega.';
+    return null;
+  };
+  const next = () => {
+    const err = stepError(step);
+    setError(err);
+    if (!err) setStep(step + 1);
+  };
+
   const submit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
+    if (step < 3) return next(); // Enter en los pasos 1 y 2 avanza, no envía.
     setError(null);
     if (mode === 'existing' && !customer) return setError('Selecciona un cliente o registra uno nuevo.');
     if (!address.formatted_address) return setError('Indica la dirección de entrega.');
@@ -157,6 +173,7 @@ export default function OrderForm({ onClose, onCreated }) {
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
+  const STEPS = ['Cliente', 'Dirección', 'Productos y pago'];
   return (
     <Modal
       title="Nuevo pedido"
@@ -164,102 +181,108 @@ export default function OrderForm({ onClose, onCreated }) {
       onClose={onClose}
       footer={
         <>
-          <div className="spacer bold">Total: {money(total, currency)}</div>
-          <button className="btn" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" form="order-form" disabled={busy}>{busy ? 'Guardando…' : 'Confirmar pedido'}</button>
+          {step === 3 && <div className="spacer bold">Total: {money(total, currency)}</div>}
+          {step === 1 ? <button key="cancel" type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button> : <button key="back" type="button" className="btn btn-ghost" onClick={() => { setError(null); setStep(step - 1); }}>Atrás</button>}
+          {step < 3 ? <button key="next" type="button" className="btn btn-primary" onClick={next}>Siguiente</button> : <button key="submit" type="submit" className="btn btn-primary" form="order-form" disabled={busy}>{busy ? 'Guardando…' : 'Confirmar pedido'}</button>}
         </>
       }
     >
+      <div className="steps-head" style={{ margin: '-18px -20px 18px' }}>
+        {STEPS.map((label, i) => (
+          <div key={label} className={i + 1 === step ? 'active' : i + 1 < step ? 'done' : ''}>
+            <span className="num">{i + 1 < step ? '✓' : i + 1}</span>{label}
+          </div>
+        ))}
+      </div>
       <form id="order-form" className="stack" onSubmit={submit}>
         {error && <div className="alert alert-danger">{error}</div>}
-        <section className="stack-sm">
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h3>1. Cliente</h3>
-            <div className="chips">
-              <button type="button" className={`chip ${mode === 'existing' ? 'active' : ''}`} onClick={() => setMode('existing')}>Existente</button>
-              <button type="button" className={`chip ${mode === 'new' ? 'active' : ''}`} onClick={() => { setMode('new'); setCustomer(null); setAddressId(''); setAddress({}); }}>Nuevo</button>
+
+        {step === 1 && (
+          <section className="stack">
+            <div className="segmented" style={{ alignSelf: 'flex-start' }}>
+              <button type="button" className={mode === 'existing' ? 'active' : ''} onClick={() => setMode('existing')}>Cliente existente</button>
+              <button type="button" className={mode === 'new' ? 'active' : ''} onClick={() => { setMode('new'); setCustomer(null); setAddressId(''); setAddress({}); }}>Cliente nuevo</button>
             </div>
-          </div>
-          {mode === 'existing' ? (
-            customer ? (
-              <div className="card card-body row" style={{ padding: 12 }}>
-                <Icon name="user" />
-                <div className="spacer">
-                  <div className="bold">{customer.name}</div>
-                  <div className="small muted">{customer.phone}{customer.email ? ` · ${customer.email}` : ''}</div>
-                </div>
-                <button type="button" className="btn btn-sm" onClick={() => { setCustomer(null); setAddressId(''); setAddress({}); }}>Cambiar</button>
-              </div>
-            ) : (
+            {mode === 'existing' ? (
               <>
-                <input className="input" placeholder="Buscar por nombre, teléfono o correo…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
-                <div className="card" style={{ maxHeight: 200, overflowY: 'auto' }}>
+                <div className="search-box">
+                  <Icon name="search" size={18} />
+                  <input className="input" placeholder="Buscar cliente por nombre o teléfono" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus />
+                </div>
+                <div className="pick-grid">
                   {results.map((c) => (
-                    <button type="button" key={c.id} className="notif-item" style={{ width: '100%', textAlign: 'left', background: 'none', border: 0, borderBottom: '1px solid var(--border)', cursor: 'pointer', font: 'inherit', color: 'inherit' }} onClick={() => pickCustomer(c)}>
-                      <span className="bold">{c.name}</span> <span className="muted small">· {c.phone} · {c.addresses?.length || 0} dirección(es)</span>
+                    <button type="button" key={c.id} className={`pick-card ${customer?.id === c.id ? 'selected' : ''}`} onClick={() => pickCustomer(c)}>
+                      <Avatar name={c.name} soft />
+                      <span className="ellipsis">
+                        <span className="bold" style={{ display: 'block' }}>{c.name}</span>
+                        <span className="small muted">{c.phone}{c.sector_name ? ` · ${c.sector_name}` : ''}</span>
+                      </span>
                     </button>
                   ))}
-                  {results.length === 0 && <div className="empty small">Sin resultados. Usa “Nuevo”.</div>}
                 </div>
+                {results.length === 0 && <div className="empty small">Sin resultados. Usa “Cliente nuevo”.</div>}
               </>
-            )
-          ) : (
-            <div className="form-grid">
-              <Field label="Nombre *"><input className="input" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} required /></Field>
-              <Field label="Teléfono *"><input className="input" type="tel" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} required placeholder="809-555-0000" /></Field>
-              <Field label="WhatsApp"><input className="input" type="tel" value={newCustomer.whatsapp} onChange={(e) => setNewCustomer({ ...newCustomer, whatsapp: e.target.value })} placeholder="Igual al teléfono si se deja vacío" /></Field>
-              <Field label="Correo"><input className="input" type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} /></Field>
-            </div>
-          )}
-        </section>
+            ) : (
+              <div className="form-grid">
+                <Field label="Nombre *"><input className="input" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} autoFocus /></Field>
+                <Field label="Teléfono *"><input className="input" type="tel" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="809-555-0000" /></Field>
+                <Field label="WhatsApp"><input className="input" type="tel" value={newCustomer.whatsapp} onChange={(e) => setNewCustomer({ ...newCustomer, whatsapp: e.target.value })} placeholder="Igual al teléfono si se deja vacío" /></Field>
+                <Field label="Correo"><input className="input" type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} /></Field>
+              </div>
+            )}
+          </section>
+        )}
 
-        <section className="stack-sm">
-          <h3>2. Dirección de entrega</h3>
-          {customer?.addresses?.length > 0 && (
-            <select className="select" value={addressId} onChange={(e) => {
-              const a = customer.addresses.find((x) => x.id === e.target.value);
-              setAddressId(e.target.value);
-              setAddress(a ? { ...a } : {});
-            }}>
-              {customer.addresses.map((a) => <option key={a.id} value={a.id}>{a.label ? `${a.label}: ` : ''}{a.formatted_address}</option>)}
-              <option value="">+ Otra dirección</option>
-            </select>
-          )}
-          <AddressPicker value={address} onChange={(a) => { setAddress(a); if (addressId && (a.lat !== address.lat || a.formatted_address !== address.formatted_address)) setAddressId(''); }} />
-          {!addressId && <label className="check small"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> Guardar esta dirección en el cliente</label>}
-          <QuoteBox quote={quote} loading={quoting} />
-          {can(user, 'orders.override_fee') && (
-            <div className="row-wrap">
-              <label className="check small"><input type="checkbox" checked={overrideFee} onChange={(e) => { setOverrideFee(e.target.checked); setFee(quote?.fee ?? ''); }} /> Modificar costo de envío manualmente</label>
-              {overrideFee && <input className="input" style={{ width: 140 }} type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} aria-label="Costo de envío" required />}
-            </div>
-          )}
-        </section>
-
-        <section className="stack-sm">
-          <h3>3. Productos, pedido y pago</h3>
-          {activeProducts.length > 0 && (
-            <div className="stack-sm">
-              <div className="label">Productos del inventario (opcional)</div>
-              <ItemsEditor products={activeProducts} items={items} onChange={setItems} />
-              {validItems.length > 0 && <div className="small muted">Subtotal de productos: {money(itemsSubtotal, currency)}. Al marcar Entregado se descuentan del inventario del mensajero.</div>}
-            </div>
-          )}
-          <div className="form-grid">
-            <Field label={`Subtotal de productos (${currency})`}><input className="input" type="number" min="0" step="0.01" value={validItems.length ? itemsSubtotal : form.subtotal} onChange={set('subtotal')} placeholder="0" disabled={validItems.length > 0} /></Field>
-            <Field label="Método de pago"><select className="select" value={form.payment_method} onChange={set('payment_method')}>{Object.entries(PAYMENT_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
-            <Field label="Estado del pago"><select className="select" value={form.payment_status} onChange={set('payment_status')}>{Object.entries(PAYMENT_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
-            <Field label="Estado inicial"><select className="select" value={form.status} onChange={set('status')}><option value="new">Nuevo</option><option value="preparing">Preparando</option><option value="ready">Listo para despacho</option></select></Field>
-            <Field label="Prioridad"><select className="select" value={form.priority} onChange={set('priority')}><option value={0}>Normal</option><option value={5}>Alta</option><option value={10}>Urgente</option></select></Field>
-            <Field label="Asignar mensajero (opcional)">
-              <select className="select" value={form.courier_id} onChange={set('courier_id')}>
-                <option value="">Sin asignar</option>
-                {(couriers.data || []).map((c) => <option key={c.id} value={c.id}>{c.name} — {c.status_label}{c.pending_count ? ` (${c.pending_count} pendientes)` : ''}</option>)}
+        {step === 2 && (
+          <section className="stack-sm">
+            {customer?.addresses?.length > 0 && (
+              <select className="select" value={addressId} onChange={(e) => {
+                const a = customer.addresses.find((x) => x.id === e.target.value);
+                setAddressId(e.target.value);
+                setAddress(a ? { ...a } : {});
+              }}>
+                {customer.addresses.map((a) => <option key={a.id} value={a.id}>{a.label ? `${a.label}: ` : ''}{a.formatted_address}</option>)}
+                <option value="">+ Otra dirección</option>
               </select>
-            </Field>
-            <Field label="Notas" className="full"><textarea className="textarea" value={form.notes} onChange={set('notes')} maxLength={2000} placeholder="Instrucciones para el mensajero, horario, etc." /></Field>
-          </div>
-        </section>
+            )}
+            <AddressPicker value={address} onChange={(a) => { setAddress(a); if (addressId && (a.lat !== address.lat || a.formatted_address !== address.formatted_address)) setAddressId(''); }} />
+            {!addressId && <label className="check small"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> Guardar esta dirección en el cliente</label>}
+            <QuoteBox quote={quote} loading={quoting} />
+          </section>
+        )}
+
+        {step === 3 && (
+          <section className="stack">
+            <QuoteBox quote={quote} loading={quoting} />
+            {can(user, 'orders.override_fee') && (
+              <div className="row-wrap">
+                <label className="check small"><input type="checkbox" checked={overrideFee} onChange={(e) => { setOverrideFee(e.target.checked); setFee(quote?.fee ?? ''); }} /> Modificar costo de envío manualmente</label>
+                {overrideFee && <input className="input" style={{ width: 140 }} type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} aria-label="Costo de envío" required />}
+              </div>
+            )}
+            {activeProducts.length > 0 && (
+              <div className="stack-sm">
+                <div className="label">Productos del inventario (opcional)</div>
+                <ItemsEditor products={activeProducts} items={items} onChange={setItems} />
+                {validItems.length > 0 && <div className="small muted">Subtotal de productos: {money(itemsSubtotal, currency)}. Al marcar Entregado se descuentan del inventario del mensajero.</div>}
+              </div>
+            )}
+            <div className="form-grid">
+              <Field label={`Subtotal de productos (${currency})`}><input className="input" type="number" min="0" step="0.01" value={validItems.length ? itemsSubtotal : form.subtotal} onChange={set('subtotal')} placeholder="0" disabled={validItems.length > 0} /></Field>
+              <Field label="Método de pago"><select className="select" value={form.payment_method} onChange={set('payment_method')}>{Object.entries(PAYMENT_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+              <Field label="Estado del pago"><select className="select" value={form.payment_status} onChange={set('payment_status')}>{Object.entries(PAYMENT_STATUS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+              <Field label="Estado inicial"><select className="select" value={form.status} onChange={set('status')}><option value="new">Nuevo</option><option value="preparing">Preparando</option><option value="ready">Listo para despacho</option></select></Field>
+              <Field label="Prioridad"><select className="select" value={form.priority} onChange={set('priority')}><option value={0}>Normal</option><option value={5}>Alta</option><option value={10}>Urgente</option></select></Field>
+              <Field label="Asignar mensajero (opcional)">
+                <select className="select" value={form.courier_id} onChange={set('courier_id')}>
+                  <option value="">Sin asignar</option>
+                  {(couriers.data || []).map((c) => <option key={c.id} value={c.id}>{c.name} — {c.status_label}{c.pending_count ? ` (${c.pending_count} pendientes)` : ''}</option>)}
+                </select>
+              </Field>
+              <Field label="Notas" className="full"><textarea className="textarea" value={form.notes} onChange={set('notes')} maxLength={2000} placeholder="Instrucciones para el mensajero, horario, etc." /></Field>
+            </div>
+          </section>
+        )}
       </form>
     </Modal>
   );

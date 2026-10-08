@@ -29,6 +29,7 @@ function createApp() {
     });
   }
 
+  const openfreemap = ['https://tiles.openfreemap.org'];
   const google = ['https://*.googleapis.com', 'https://*.gstatic.com', 'https://*.google.com', 'https://*.ggpht.com', 'https://*.googleusercontent.com'];
   app.use(
     helmet({
@@ -39,8 +40,8 @@ function createApp() {
           'script-src': ["'self'", "'unsafe-eval'", ...google],
           'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
-          'img-src': ["'self'", 'data:', 'blob:', ...google],
-          'connect-src': ["'self'", 'ws:', 'wss:', 'data:', 'blob:', ...google],
+          'img-src': ["'self'", 'data:', 'blob:', ...google, ...openfreemap],
+          'connect-src': ["'self'", 'ws:', 'wss:', 'data:', 'blob:', ...google, ...openfreemap],
           'worker-src': ["'self'", 'blob:'],
           'frame-src': ['https://*.google.com'],
           'upgrade-insecure-requests': config.forceHttps ? [] : null,

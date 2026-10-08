@@ -196,15 +196,15 @@ exports.seed = async function seed(knex) {
 
   // --- Inventario de ejemplo ---
   const productDefs = [
-    { sku: 'AGUA-5G', name: 'Botellón de agua 5 galones', unit: 'botellón', price: 100, warehouse: 300 },
-    { sku: 'REF-24', name: 'Caja de refrescos (24 uds.)', unit: 'caja', price: 900, warehouse: 80 },
-    { sku: 'ARROZ-25', name: 'Saco de arroz 25 lb', unit: 'saco', price: 1150, warehouse: 60 },
-    { sku: 'ACEITE-1G', name: 'Aceite vegetal 1 galón', unit: 'galón', price: 650, warehouse: 90 },
+    { sku: 'AGUA-5G', name: 'Botellón de agua 5 galones', unit: 'botellón', price: 100, warehouse: 300, min: 50 },
+    { sku: 'REF-24', name: 'Caja de refrescos (24 uds.)', unit: 'caja', price: 900, warehouse: 80, min: 20 },
+    { sku: 'ARROZ-25', name: 'Saco de arroz 25 lb', unit: 'saco', price: 1150, warehouse: 30, min: 25 },
+    { sku: 'ACEITE-1G', name: 'Aceite vegetal 1 galón', unit: 'galón', price: 650, warehouse: 90, min: 20 },
   ];
   const products = [];
   for (const p of productDefs) {
     const id = uuid();
-    await knex('products').insert({ id, sku: p.sku, name: p.name, unit: p.unit, price: p.price, warehouse_stock: p.warehouse, active: true, ...stamp });
+    await knex('products').insert({ id, sku: p.sku, name: p.name, unit: p.unit, price: p.price, warehouse_stock: p.warehouse, min_stock: p.min, active: true, ...stamp });
     await knex('inventory_movements').insert({ id: uuid(), type: 'warehouse_adjust', product_id: id, warehouse_delta: p.warehouse, user_id: adminId, note: 'Existencia inicial', created_at: ts });
     products.push({ ...p, id });
   }

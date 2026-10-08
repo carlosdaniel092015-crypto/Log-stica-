@@ -25,12 +25,13 @@ function signSession(user) {
   });
 }
 
-function setSessionCookie(res, token) {
+/** `remember=false` crea una cookie de sesión del navegador (se borra al cerrarlo). */
+function setSessionCookie(res, token, { remember = true } = {}) {
   res.cookie(config.auth.cookieName, token, {
     httpOnly: true,
     secure: config.forceHttps,
     sameSite: 'lax',
-    maxAge: config.auth.sessionHours * 3600 * 1000,
+    ...(remember ? { maxAge: config.auth.sessionHours * 3600 * 1000 } : {}),
     path: '/',
   });
 }

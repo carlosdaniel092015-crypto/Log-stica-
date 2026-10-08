@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { relative, whatsappUrl } from '../../lib/format';
-import { CourierBadge, Empty, Field, Modal, Spinner, StatusBadge, useAction, useAsync, useSocketEvent } from '../../components/ui';
+import { time, whatsappUrl } from '../../lib/format';
+import { courierColor } from '../../lib/maps';
+import { Avatar, CourierBadge, Empty, Field, Modal, Spinner, StatusBadge, useAction, useAsync, useSocketEvent } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { can, useApp } from '../../context/AppContext';
 
@@ -76,7 +77,7 @@ export default function Couriers() {
   return (
     <div>
       <div className="page-header">
-        <div><h1>Mensajeros</h1><p>Estado de jornada, pedido actual y carga de trabajo.</p></div>
+        <div><h1>Mensajeros</h1><p>Jornada, ubicación y entregas pendientes de cada mensajero</p></div>
         <div className="row-wrap">
           <Link to="/admin/seguimiento" className="btn"><Icon name="map" /> Ver en el mapa</Link>
           {can(user, 'users.manage') && <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" /> Nuevo mensajero</button>}
@@ -86,19 +87,24 @@ export default function Couriers() {
         {loading && !data ? <Spinner center /> : (
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Mensajero</th><th>Estado</th><th>Jornada</th><th>Ubicación</th><th>Se dirige a</th><th className="num">Pendientes</th><th className="num">Entregados hoy</th><th /></tr></thead>
+              <thead><tr><th>Mensajero</th><th>Estado</th><th>Jornada</th><th>Ubicación</th><th>Se dirige a</th><th className="num">Pendientes</th><th className="num">Entregados</th><th /></tr></thead>
               <tbody>
                 {(data || []).map((c) => (
                   <tr key={c.id} style={{ opacity: c.active ? 1 : 0.5 }}>
-                    <td><div className="bold">{c.name}</div><div className="tiny muted">{c.vehicle || '—'} {c.plate ? `· ${c.plate}` : ''}</div></td>
+                    <td>
+                      <span className="cell-person">
+                        <Avatar name={c.name} color={courierColor(c.status)} />
+                        <span><span className="bold" style={{ display: 'block' }}>{c.name}</span><span className="tiny muted mono">{c.phone || c.vehicle || '—'}</span></span>
+                      </span>
+                    </td>
                     <td><CourierBadge status={c.status} /></td>
-                    <td className="small">{c.shift_active ? `Desde ${relative(c.shift_started_at)}` : 'Fuera de jornada'}</td>
-                    <td className="small">{c.sharing_location ? (c.location ? <span style={{ color: 'var(--success)' }}>● {relative(c.location.updated_at)}</span> : 'Esperando…') : <span className="muted">No comparte</span>}</td>
-                    <td className="small">{c.current_order ? <Link to={`/admin/pedidos/${c.current_order.id}`}>#{c.current_order.order_number} · {c.current_order.customer_name}</Link> : '—'}</td>
-                    <td className="num">{c.pending_count}</td>
+                    <td className="small">{c.shift_active ? `Desde ${time(c.shift_started_at)}` : '—'}</td>
+                    <td className="small">{c.shift_active && c.sharing_location ? <span className="row" style={{ gap: 6 }}><span className="kpi-dot" style={{ background: 'var(--success)' }} /><strong>Activa</strong></span> : <span className="row muted" style={{ gap: 6 }}><span className="kpi-dot" style={{ background: 'var(--border-strong)' }} />Inactiva</span>}</td>
+                    <td className="small">{c.current_order ? <Link to={`/admin/pedidos/${c.current_order.id}`} style={{ color: 'inherit' }}>Hacia: {c.current_order.customer_name} #{c.current_order.order_number}</Link> : <span className="muted">{c.shift_active ? 'Sin destino asignado' : 'Sin jornada activa'}</span>}</td>
+                    <td className="num bold">{c.pending_count}</td>
                     <td className="num">{c.delivered_today}</td>
                     <td className="nowrap">
-                      <button className="btn btn-sm" onClick={() => setRoute(c)}><Icon name="list" /> Ruta</button>{' '}
+                      <button className="btn btn-sm" onClick={() => setRoute(c)}>Ruta</button>{' '}
                       {c.phone && <a className="btn btn-sm btn-ghost" href={`tel:${c.phone}`} aria-label="Llamar"><Icon name="phone" /></a>}
                       {c.phone && <a className="btn btn-sm btn-ghost" href={whatsappUrl(c.phone)} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon name="whatsapp" /></a>}
                     </td>

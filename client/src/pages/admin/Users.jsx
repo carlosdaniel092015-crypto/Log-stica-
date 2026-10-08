@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, qs } from '../../lib/api';
-import { dateTime } from '../../lib/format';
-import { Empty, Field, Modal, Spinner, useAction, useAsync } from '../../components/ui';
+import { relative } from '../../lib/format';
+import { Avatar, Empty, Field, Modal, Spinner, useAction, useAsync } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { useApp } from '../../context/AppContext';
 
@@ -82,7 +82,7 @@ export default function Users() {
   return (
     <div>
       <div className="page-header">
-        <div><h1>Usuarios</h1><p>Cuentas de administradores, despachadores y mensajeros. Los clientes no tienen cuenta.</p></div>
+        <div><h1>Usuarios</h1><p>Solo administradores, despachadores y mensajeros inician sesión</p></div>
         <div className="row-wrap">
           <button className="btn" onClick={() => setRoles(true)}><Icon name="shield" /> Roles y permisos</button>
           <button className="btn btn-primary" onClick={() => setModal({})}><Icon name="plus" /> Nuevo usuario</button>
@@ -96,16 +96,15 @@ export default function Users() {
         {loading && !data ? <Spinner center /> : (
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Teléfono</th><th>Último acceso</th><th>Estado</th><th /></tr></thead>
+              <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th /></tr></thead>
               <tbody>
                 {(data || []).map((u) => (
                   <tr key={u.id}>
-                    <td className="bold">{u.name}</td>
+                    <td><span className="cell-person"><Avatar name={u.name} soft /><strong>{u.name}</strong></span></td>
                     <td className="small">{u.email}</td>
                     <td>{ROLE_LABELS[u.role]}</td>
-                    <td className="small">{u.phone || '—'}</td>
-                    <td className="small">{dateTime(u.last_login_at)}</td>
                     <td><span className="badge" style={{ '--c': u.active ? 'var(--success)' : 'var(--muted)' }}>{u.active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td className="small muted">{u.last_login_at ? relative(u.last_login_at) : 'Nunca'}</td>
                     <td className="nowrap">
                       <button className="btn btn-sm" onClick={() => setModal(u)}><Icon name="edit" /></button>{' '}
                       <button className="btn btn-sm" disabled={busy || u.id === me.id} onClick={() => run(async () => { await api.post(`/api/users/${u.id}/active`, { active: !u.active }); reload(true); }, u.active ? 'Usuario desactivado; sus sesiones se cerraron.' : 'Usuario activado.')}>{u.active ? 'Desactivar' : 'Activar'}</button>{' '}

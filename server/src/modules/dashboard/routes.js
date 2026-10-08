@@ -6,6 +6,7 @@ const { requirePermission } = require('../../middleware/auth');
 const { getSettings } = require('../settings/service');
 const { dayStartIso } = require('../couriers/service');
 const { PENDING, ACTIVE_ROUTE } = require('../orders/statuses');
+const inventory = require('../inventory/service');
 
 const router = express.Router();
 router.use(requirePermission('dashboard.view'));
@@ -26,7 +27,7 @@ router.get('/', ah(async (req, res) => {
     db('orders').whereIn('status', [...PENDING, 'assigned', ...ACTIVE_ROUTE, 'failed', 'customer_unavailable']).select('status'),
     db('couriers as c').join('users as u', 'u.id', 'c.user_id').where('u.active', true).select('c.status', 'c.shift_active'),
     db('orders').where('created_at', '>=', since).countDistinct('customer_id as n').first(),
-    db('orders').where((w) => w.where('created_at', '>=', since).orWhere('delivered_at', '>=', since)).select('id', 'status', 'created_at', 'delivered_at', 'updated_at', 'delivery_fee', 'courier_id', 'zone_id'),
+    db('orders').where((w) => w.where('created_at', '>=', since).orWhere('delivered_at', '>=', since)).select('id', 'status', 'created_at', 'delivered_at', 'departed_at', 'updated_at', 'delivery_fee', 'total', 'payment_method', 'courier_id', 'zone_id'),
     db('delivery_zones').select('id', 'name'),
     db('couriers as c').join('users as u', 'u.id', 'c.user_id').select('c.id', 'u.name'),
   ]);
@@ -68,12 +69,15 @@ router.get('/', ah(async (req, res) => {
       const d = localDay(o.updated_at, tz);
       if (byDay[d]) byDay[d].failed++;
     }
-    if (o.courier_id && ['delivered', 'failed', 'customer_unavailable'].includes(o.status)) {
-      const c = (byCourier[o.courier_id] ||= { courier_id: o.courier_id, name: courierNames.find((x) => x.id === o.courier_id)?.name || '—', delivered: 0, failed: 0, revenue: 0 });
+    if (o.courier_id) {
+      const c = (byCourier[o.courier_id] ||= { courier_id: o.courier_id, name: courierNames.find((x) => x.id === o.courier_id)?.name || '—', assigned: 0, delivered: 0, failed: 0, revenue: 0, collected: 0, minutes: [] });
+      c.assigned++;
       if (o.status === 'delivered') {
         c.delivered++;
         c.revenue += Number(o.delivery_fee);
-      } else c.failed++;
+        if (o.payment_method === 'cash') c.collected += Number(o.total);
+        if (o.departed_at && o.delivered_at) c.minutes.push((new Date(o.delivered_at) - new Date(o.departed_at)) / 60000);
+      } else if (['failed', 'customer_unavailable'].includes(o.status)) c.failed++;
     }
     if (o.status === 'delivered') {
       const key = o.zone_id || 'none';
@@ -82,7 +86,15 @@ router.get('/', ah(async (req, res) => {
       zn.revenue += Number(o.delivery_fee);
     }
   }
-  const perCourier = Object.values(byCourier).map((c) => ({ ...c, success_rate: c.delivered + c.failed ? Math.round((c.delivered / (c.delivered + c.failed)) * 100) : null }));
+  const perCourier = Object.values(byCourier).map(({ minutes, ...c }) => ({
+    ...c,
+    avg_minutes: minutes.length ? Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length) : null,
+    success_rate: c.delivered + c.failed ? Math.round((c.delivered / (c.delivered + c.failed)) * 100) : null,
+  }));
+  const [pendingRequests, lowStock] = await Promise.all([
+    db('inventory_requests').where({ status: 'pending' }).count('id as n').first(),
+    inventory.lowStockProducts(),
+  ]);
 
   res.json({
     kpis,
@@ -91,6 +103,8 @@ router.get('/', ah(async (req, res) => {
     by_courier: perCourier.sort((a, b) => b.delivered - a.delivered),
     by_zone: Object.values(byZone).sort((a, b) => b.delivered - a.delivered),
     currency: settings.currency_symbol,
+    pending_requests: Number(pendingRequests.n),
+    low_stock: lowStock.map((p) => ({ id: p.id, name: p.name, warehouse_stock: p.warehouse_stock, min_stock: p.min_stock })),
   });
 }));
 

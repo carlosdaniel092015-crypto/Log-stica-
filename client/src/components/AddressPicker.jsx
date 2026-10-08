@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
 import { MapView } from './Map';
 import { api } from '../lib/api';
-import { pinElement, SD_CENTER } from '../lib/maps';
+import { SD_CENTER } from '../lib/maps';
 import { getCurrentPosition, geoSupported } from '../lib/geolocation';
 import { Field, Modal } from './ui';
 
@@ -76,7 +76,7 @@ export default function AddressPicker({ value, onChange, showReference = true, m
   const v = value || {};
   const [tree, setTree] = useState(null);
   const [mapState, setMapState] = useState(null);
-  const markerRef = useRef(null);
+  const lastCentered = useRef(null);
   const autoRef = useRef(null);
   const valueRef = useRef(v);
   valueRef.current = v;
@@ -120,66 +120,40 @@ export default function AddressPicker({ value, onChange, showReference = true, m
     [onChange, update]
   );
 
-  // Marcador movible.
+  // Pin movible (OpenFreeMap o Google).
   useEffect(() => {
     if (!mapState) return;
-    const { map, gm } = mapState;
     if (v.lat == null || v.lng == null) {
-      if (markerRef.current) markerRef.current.map = null;
-      markerRef.current = null;
+      mapState.setMarkers([]);
       return;
     }
     const pos = { lat: Number(v.lat), lng: Number(v.lng) };
-    if (!markerRef.current) {
-      const m = new gm.marker.AdvancedMarkerElement({ map, position: pos, gmpDraggable: true, content: pinElement({ color: '#dc2626', label: '' }), title: 'Arrastra para ajustar' });
-      m.addListener('dragend', () => {
-        const p = m.position;
-        const lat = typeof p.lat === 'function' ? p.lat() : p.lat;
-        const lng = typeof p.lng === 'function' ? p.lng() : p.lng;
-        resolvePoint(lat, lng);
-      });
-      markerRef.current = m;
-      map.setCenter(pos);
-      map.setZoom(16);
-    } else {
-      markerRef.current.position = pos;
-      const c = map.getCenter();
-      if (c && Math.abs(c.lat() - pos.lat) + Math.abs(c.lng() - pos.lng) > 0.01) map.panTo(pos);
+    mapState.setMarkers([{ id: 'pin', ...pos, kind: 'dest', color: '#dc2626', size: 32, draggable: true, title: 'Arrastra para ajustar', onDragEnd: (lat, lng) => resolvePoint(lat, lng) }]);
+    if (lastCentered.current !== `${pos.lat},${pos.lng}`) {
+      lastCentered.current = `${pos.lat},${pos.lng}`;
+      mapState.setView(pos, Math.max(mapState.getZoom() || 0, 16));
     }
   }, [mapState, v.lat, v.lng, resolvePoint]);
 
   const onReady = useCallback(
-    ({ map, gm }) => {
-      setMapState({ map, gm });
-      map.addListener('click', (e) => resolvePoint(e.latLng.lat(), e.latLng.lng()));
-      // Autocompletado de Google Places (API nueva).
-      if (autoRef.current && gm.places.PlaceAutocompleteElement) {
-        const el = new gm.places.PlaceAutocompleteElement({ includedRegionCodes: ['do'], locationBias: SD_CENTER });
+    (h) => {
+      setMapState(h);
+      h.onClick((lat, lng) => resolvePoint(lat, lng));
+      // Autocompletado de Google Places (solo con el motor de Google, por sus términos de uso).
+      if (h.engine === 'google' && autoRef.current && h.gm.places.PlaceAutocompleteElement) {
+        const el = new h.gm.places.PlaceAutocompleteElement({ includedRegionCodes: ['do'], locationBias: SD_CENTER });
         el.setAttribute('placeholder', 'Buscar dirección o lugar (ej. Plaza Fermín km 9 Autopista Duarte)');
         autoRef.current.innerHTML = '';
         autoRef.current.appendChild(el);
-        const handle = async (prediction) => {
-          if (!prediction) return;
-          const place = prediction.toPlace();
+        el.addEventListener('gmp-select', async ({ placePrediction }) => {
+          if (!placePrediction) return;
+          const place = placePrediction.toPlace();
           await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents', 'id'] });
-          const lat = place.location.lat();
-          const lng = place.location.lng();
           const name = place.displayName && !place.formattedAddress?.startsWith(place.displayName) ? `${place.displayName}, ` : '';
-          resolvePoint(lat, lng, {
+          resolvePoint(place.location.lat(), place.location.lng(), {
             components: (place.addressComponents || []).map((c) => ({ long_name: c.longText, short_name: c.shortText, types: c.types })),
             formatted: `${name}${place.formattedAddress || ''}`,
             placeId: place.id,
-          });
-        };
-        el.addEventListener('gmp-select', (e) => handle(e.placePrediction));
-        el.addEventListener('gmp-placeselect', async (e) => {
-          // Compatibilidad con versiones anteriores del componente.
-          if (!e.place) return;
-          await e.place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'addressComponents', 'id'] });
-          resolvePoint(e.place.location.lat(), e.place.location.lng(), {
-            components: (e.place.addressComponents || []).map((c) => ({ long_name: c.longText, short_name: c.shortText, types: c.types })),
-            formatted: e.place.formattedAddress,
-            placeId: e.place.id,
           });
         });
       }
@@ -187,12 +161,36 @@ export default function AddressPicker({ value, onChange, showReference = true, m
     [resolvePoint]
   );
 
+  /** Búsqueda sin Google: sectores, municipios y provincias registrados en la base de datos. */
+  const placeOptions = useMemo(() => {
+    if (!tree) return [];
+    const muni = Object.fromEntries(tree.municipalities.map((m) => [m.id, m]));
+    const prov = Object.fromEntries(tree.provinces.map((p) => [p.id, p]));
+    return [
+      ...tree.sectors.filter((s) => s.active && s.lat != null).map((s) => ({ key: `s:${s.id}`, label: `${s.name}, ${muni[s.municipality_id]?.name || ''}`, lat: s.lat, lng: s.lng, sector_id: s.id, municipality_id: s.municipality_id, province_id: muni[s.municipality_id]?.province_id })),
+      ...tree.municipalities.filter((m) => m.active && m.lat != null).map((m) => ({ key: `m:${m.id}`, label: `${m.name}, ${prov[m.province_id]?.name || ''}`, lat: m.lat, lng: m.lng, municipality_id: m.id, province_id: m.province_id })),
+    ];
+  }, [tree]);
+  const [query, setQuery] = useState('');
+  const pickPlace = (label) => {
+    const o = placeOptions.find((x) => x.label === label);
+    if (!o) return;
+    setQuery('');
+    onChange({ ...valueRef.current, lat: o.lat, lng: o.lng, province_id: o.province_id || null, municipality_id: o.municipality_id || null, sector_id: o.sector_id || null, admin_approximate: false });
+  };
+
   const municipalities = useMemo(() => (tree?.municipalities || []).filter((m) => !v.province_id || m.province_id === v.province_id), [tree, v.province_id]);
   const sectors = useMemo(() => (tree?.sectors || []).filter((s) => !v.municipality_id || s.municipality_id === v.municipality_id), [tree, v.municipality_id]);
 
   return (
     <div className="stack">
       <div ref={autoRef} />
+      {mapState && mapState.engine !== 'google' && placeOptions.length > 0 && (
+        <div className="input-group">
+          <input className="input" list="lrd-places" value={query} placeholder="Buscar sector o municipio para ubicar el mapa (ej. Herrera)" onChange={(e) => { setQuery(e.target.value); pickPlace(e.target.value); }} aria-label="Buscar sector" />
+          <datalist id="lrd-places">{placeOptions.map((o) => <option key={o.key} value={o.label} />)}</datalist>
+        </div>
+      )}
       <MapView className={mapClass} center={v.lat != null ? { lat: Number(v.lat), lng: Number(v.lng) } : SD_CENTER} zoom={v.lat != null ? 16 : 11} onReady={onReady}>
         {mapState && (
           <div className="map-toolbar" style={{ justifyContent: 'flex-end', top: 'auto', bottom: 12 }}>

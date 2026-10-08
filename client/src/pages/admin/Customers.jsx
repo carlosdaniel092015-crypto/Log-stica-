@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, qs } from '../../lib/api';
-import { dateTime } from '../../lib/format';
-import { pinElement, SD_CENTER } from '../../lib/maps';
-import { Empty, Field, Modal, Spinner, useAction, useAsync } from '../../components/ui';
-import { MapView, fitTo, syncMarkers } from '../../components/Map';
+import { money } from '../../lib/format';
+import { SD_CENTER } from '../../lib/maps';
+import { Avatar, Empty, Field, Modal, Spinner, useAction, useAsync } from '../../components/ui';
+import { MapView } from '../../components/Map';
+import { useApp } from '../../context/AppContext';
 import AddressPicker from '../../components/AddressPicker';
 import Icon from '../../components/Icon';
 
@@ -45,35 +46,29 @@ export default function Customers() {
   const [view, setView] = useState('table');
   const [creating, setCreating] = useState(false);
   const { data, loading, reload } = useAsync(() => api.get(`/api/customers${qs({ q, with_addresses: 'true' })}`), [q]);
+  const { currency } = useApp();
   const mapRef = useRef(null);
-  const markers = useRef(new Map());
 
   const draw = useCallback(() => {
-    const m = mapRef.current;
-    if (!m || !data) return;
+    const h = mapRef.current;
+    if (!h || !data) return;
     const items = [];
     for (const c of data) {
       for (const a of c.addresses || []) {
         if (a.lat == null) continue;
-        items.push({
-          id: a.id,
-          position: { lat: a.lat, lng: a.lng },
-          content: pinElement({ color: '#2563eb', label: '', size: 24 }),
-          title: `${c.name} — ${a.formatted_address}`,
-          onClick: () => navigate(`/admin/clientes/${c.id}`),
-        });
+        items.push({ id: a.id, lat: a.lat, lng: a.lng, kind: 'dest', color: '#2563eb', size: 24, title: `${c.name} — ${a.formatted_address}`, onClick: () => navigate(`/admin/clientes/${c.id}`) });
       }
     }
-    syncMarkers(markers.current, m.map, m.gm, items);
-    fitTo(m.map, m.gm, items.map((i) => i.position), { maxZoom: 14 });
+    h.setMarkers(items);
+    h.fit(items, { maxZoom: 14 });
   }, [data, navigate]);
   useEffect(draw, [draw]);
-  useEffect(() => { if (view !== 'map') { mapRef.current = null; markers.current = new Map(); } }, [view]);
+  useEffect(() => { if (view !== 'map') mapRef.current = null; }, [view]);
 
   return (
     <div>
       <div className="page-header">
-        <div><h1>Clientes</h1><p>Clientes registrados por el personal. Siguen sus pedidos con el enlace privado, sin cuenta.</p></div>
+        <div><h1>Clientes</h1><p>Los clientes no tienen cuenta: reciben un enlace de seguimiento por pedido</p></div>
         <div className="row-wrap">
           <div className="chips">
             <button className={`chip ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>Lista</button>
@@ -84,7 +79,7 @@ export default function Customers() {
       </div>
       <div className="filters"><input className="input grow" placeholder="Buscar por nombre, teléfono o correo" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {view === 'map' ? (
-        <MapView className="map map-tall" center={SD_CENTER} zoom={11} onReady={(m) => { mapRef.current = m; draw(); }}>
+        <MapView className="map map-tall" center={SD_CENTER} zoom={11} onReady={(h) => { mapRef.current = h; draw(); }}>
           <div className="map-legend"><div className="row" style={{ gap: 6 }}><span className="color-dot" style={{ background: '#2563eb' }} />Dirección de cliente</div></div>
         </MapView>
       ) : (
@@ -92,20 +87,18 @@ export default function Customers() {
           {loading && !data ? <Spinner center /> : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Dirección principal</th><th>Registrado</th></tr></thead>
+                <thead><tr><th>Cliente</th><th>Teléfono</th><th>Sector / zona</th><th className="num">Pedidos</th><th>Último pedido</th><th className="num">Total comprado</th></tr></thead>
                 <tbody>
-                  {(data || []).map((c) => {
-                    const a = c.addresses?.find((x) => x.is_default) || c.addresses?.[0];
-                    return (
-                      <tr key={c.id} className="clickable" onClick={() => navigate(`/admin/clientes/${c.id}`)} style={{ opacity: c.active ? 1 : 0.5 }}>
-                        <td className="bold">{c.name}</td>
-                        <td>{c.phone}</td>
-                        <td className="small">{c.email || '—'}</td>
-                        <td className="small"><div className="ellipsis" style={{ maxWidth: 280 }}>{a?.formatted_address || '—'}</div></td>
-                        <td className="small">{dateTime(c.created_at)}</td>
-                      </tr>
-                    );
-                  })}
+                  {(data || []).map((c) => (
+                    <tr key={c.id} className="clickable" onClick={() => navigate(`/admin/clientes/${c.id}`)} style={{ opacity: c.active ? 1 : 0.5 }}>
+                      <td><span className="cell-person"><Avatar name={c.name} soft /><strong>{c.name}</strong></span></td>
+                      <td className="mono">{c.phone}</td>
+                      <td>{c.sector_name || '—'}{c.municipality_name && <span className="muted"> · {c.municipality_name}</span>}</td>
+                      <td className="num">{c.orders_count}</td>
+                      <td className="small">{c.last_order_at ? new Date(c.last_order_at).toLocaleDateString('es-DO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+                      <td className="num bold">{money(c.total_spent, currency)}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
               {data?.length === 0 && <Empty icon="users" title="Sin clientes" />}

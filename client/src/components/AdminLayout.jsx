@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import NotificationBell from './NotificationBell';
-import { OnlineIndicator } from './ui';
+import { Avatar, OnlineIndicator } from './ui';
 import OutcomeToasts from './OutcomeToasts';
 import { InstallBanner } from './pwa';
 import { can, useApp } from '../context/AppContext';
@@ -25,7 +25,7 @@ const NAV = [
 ];
 
 export default function AdminLayout() {
-  const { user, logout, config } = useApp();
+  const { user, logout, config, isDark, toggleTheme } = useApp();
   const location = useLocation();
   const items = NAV.filter((n) => n.section || can(user, n.perm));
   const sections = items.filter((n, i) => !n.section || (items[i + 1] && !items[i + 1].section));
@@ -54,9 +54,12 @@ export default function AdminLayout() {
           )}
         </nav>
         <div className="sidebar-footer">
-          <div className="small" style={{ padding: '4px 10px 8px', color: '#fff' }}>
-            {user.name}
-            <div className="tiny" style={{ color: 'var(--nav-text)' }}>{user.role === 'admin' ? 'Administrador' : 'Despachador'}</div>
+          <div className="sidebar-user">
+            <Avatar name={user.name} />
+            <div className="ellipsis">
+              {user.name}
+              <small>{user.role === 'admin' ? 'Administrador' : 'Despachador'}</small>
+            </div>
           </div>
           <button className="nav-link" style={{ width: '100%', background: 'none', border: 0, font: 'inherit', cursor: 'pointer' }} onClick={logout}>
             <Icon name="logout" /> Cerrar sesión
@@ -67,6 +70,9 @@ export default function AdminLayout() {
         <header className="topbar">
           <div className="topbar-title ellipsis">{current?.label || 'Panel'}</div>
           <OnlineIndicator />
+          <button className="btn btn-ghost btn-icon" onClick={toggleTheme} aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'} title={isDark ? 'Modo claro' : 'Modo oscuro'}>
+            <Icon name={isDark ? 'sun' : 'moon'} />
+          </button>
           <NotificationBell />
         </header>
         <main className="content">

@@ -1,6 +1,6 @@
 # Entregas RD — Plataforma de logística y seguimiento de entregas
 
-Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con **Google Maps Platform** y un enlace privado para que el cliente siga su pedido. **El cliente no tiene cuenta**: solo recibe el enlace, que comparte el administrador o el mensajero.
+Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con mapas (**OpenFreeMap** gratis por defecto, o **Google Maps** si configuras una clave) y un enlace privado para que el cliente siga su pedido. **El cliente no tiene cuenta**: solo recibe el enlace, que comparte el administrador o el mensajero.
 
 Funciona completa desde el navegador (móvil, tablet y computadora). La instalación como **PWA es opcional** (recomendada para mensajeros).
 
@@ -64,14 +64,14 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
-- **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA, LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
+- **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA (abre la navegación en **Google Maps o Waze**, a elección del mensajero, y recuerda la última app usada), LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
 - Evidencia de entrega: nombre de quien recibe, notas, foto (comprimida en el dispositivo), firma, coordenadas (si hay permiso) y cobro en efectivo.
 - **COMPARTIR SEGUIMIENTO CON EL CLIENTE** desde cada entrega (WhatsApp, SMS, correo o copiar); el mensajero solo comparte, no puede regenerar ni revocar.
 - Modo sin conexión: las acciones se guardan en el dispositivo y se envían al volver internet.
 
 **Cliente** (`/seguimiento/<token>`, sin cuenta ni inicio de sesión)
 - Número y estado del pedido, progreso (✓ Recibido → Preparando → Mensajero asignado → En camino → Llegando → Entregado), mensajero, mapa con su ubicación (si la empresa lo permite), tiempo estimado de llegada y mensajes como "Tu mensajero está cerca".
-- Confirmar la ubicación, compartirla (**USAR MI UBICACIÓN ACTUAL**, con aviso previo), corregir el pin y agregar referencias.
+- Ver la dirección de entrega y el detalle del pedido, y agregar referencias para el mensajero (ej.: portón negro).
 - Contactar con la empresa o con el mensajero (si está permitido) y activar notificaciones opcionales.
 
 **Cierre automático del enlace:** en cuanto el pedido se marca como **Entregado** o **Cancelado** (por el mensajero o el administrador), todos sus enlaces se revocan, la página abierta del cliente muestra el cierre y deja de recibir datos, y el enlace responde "no disponible". No se puede volver a generar mientras el pedido siga cerrado. Así el cliente no puede seguir viendo al mensajero después de la entrega.
@@ -81,7 +81,7 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 ## Arquitectura
 
 ```
-client/   React + Vite (SPA/PWA): pantallas, Google Maps JS API, Socket.IO, service worker
+client/   React + Vite (SPA/PWA): pantallas, mapas (OpenFreeMap o Google Maps), Socket.IO, service worker
 server/   Node.js + Express 5 + Socket.IO + Knex
   src/modules/
     auth/          inicio de sesión del personal y mensajeros, contraseñas (bcrypt), sesiones JWT en cookie httpOnly
@@ -110,7 +110,14 @@ server/   Node.js + Express 5 + Socket.IO + Knex
 
 ---
 
-## Google Maps Platform
+## Mapas
+
+- **Sin configurar nada** se usa **OpenFreeMap** (teselas vectoriales de OpenStreetMap, gratis y sin clave) con Leaflet + MapLibre. Tiene estilo claro y oscuro, y las direcciones se buscan por sector o municipio y se ajustan arrastrando el pin.
+- Si defines `GOOGLE_MAPS_BROWSER_KEY`, todos los mapas pasan a **Google Maps**, con autocompletado de Places. Nunca se mezclan ambos en un mismo mapa (lo prohíben los términos de Google).
+- En el panel hay **modo oscuro** (botón de luna arriba a la derecha); los mapas cambian de estilo con él.
+- Inventario: cada producto tiene una **existencia mínima**; al bajar de ella aparece el aviso "se están acabando" en el dashboard y en Inventario, y se notifica a los administradores.
+
+## Google Maps Platform (opcional)
 
 Activa en Google Cloud las APIs **Maps JavaScript API**, **Places API (New)**, **Geocoding API** y **Routes API**, y crea **dos claves**:
 
@@ -124,7 +131,7 @@ También necesitas `GOOGLE_MAPS_MAP_ID`, un Map ID de tipo JavaScript para los m
 - El autocompletado usa `PlaceAutocompleteElement`, limitado a República Dominicana.
 - El dibujo de zonas usa una herramienta propia, porque la Drawing Library de Google fue retirada.
 - El tiempo estimado de llegada usa Routes API (`computeRoutes`, `TWO_WHEELER`) como máximo una vez cada 45 segundos por pedido. Sin clave de servidor, se estima con la distancia en línea recta × 1,35 y la velocidad promedio configurada.
-- **Sin clave de navegador** la plataforma sigue funcionando: los mapas muestran un aviso y las direcciones se capturan escribiéndolas y eligiendo provincia, municipio y sector.
+- **Sin clave de navegador** se usa OpenFreeMap (ver arriba); la plataforma funciona completa.
 
 ---
 

@@ -8,6 +8,36 @@ export function AppProvider({ children }) {
   const [config, setConfig] = useState(null);
   const [user, setUser] = useState(undefined); // undefined = cargando
   const [toasts, setToasts] = useState([]);
+  // Tema: claro/oscuro elegido por el usuario o, por defecto, el del sistema.
+  const [themePref, setThemePref] = useState(() => {
+    try {
+      return localStorage.getItem('lrd_theme') || 'system';
+    } catch {
+      return 'system';
+    }
+  });
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches || false);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return undefined;
+    const fn = (e) => setSystemDark(e.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  const isDark = themePref === 'dark' || (themePref === 'system' && systemDark);
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#0a1628' : '#0f2a4a');
+  }, [isDark]);
+  const toggleTheme = useCallback(() => {
+    const next = isDark ? 'light' : 'dark';
+    setThemePref(next);
+    try {
+      localStorage.setItem('lrd_theme', next);
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [isDark]);
   const idRef = useRef(0);
 
   const toast = useCallback((message, { title, type = 'info', timeout = 4500 } = {}) => {
@@ -44,8 +74,8 @@ export function AppProvider({ children }) {
   }, [loadConfig, refreshUser]);
 
   const login = useCallback(
-    async (email, password) => {
-      await api.post('/api/auth/login', { email, password });
+    async (email, password, remember = true) => {
+      await api.post('/api/auth/login', { email, password, remember });
       resetSocket();
       return refreshUser();
     },
@@ -59,8 +89,8 @@ export function AppProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ config, reloadConfig: loadConfig, user, setUser, refreshUser, login, logout, toast, currency: config?.company?.currency_symbol || 'RD$' }),
-    [config, loadConfig, user, refreshUser, login, logout, toast]
+    () => ({ config, reloadConfig: loadConfig, user, setUser, refreshUser, login, logout, toast, currency: config?.company?.currency_symbol || 'RD$', isDark, toggleTheme }),
+    [config, loadConfig, user, refreshUser, login, logout, toast, isDark, toggleTheme]
   );
 
   return (
