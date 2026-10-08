@@ -575,3 +575,36 @@ gmp-place-autocomplete { width: 100%; }
 .paste-location { display: grid; gap: 6px; padding: 10px; border: 1px dashed color-mix(in srgb, var(--primary) 45%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
 .text-success { color: var(--success); }
 .text-danger { color: var(--danger); }
+
+/* ---------- Teléfono: todo cabe en la pantalla, sin desplazarse hacia los lados ---------- */
+@media (max-width: 760px) {
+  /* Pestañas en varias líneas en vez de una fila que se sale. */
+  .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 0; }
+  .tab { padding: 9px 10px; }
+
+  /* Tablas → tarjetas: una tarjeta por fila y cada dato con el nombre de su columna. */
+  .content .table-wrap { overflow-x: visible; }
+  .content .table, .content .table tbody, .content .table tr, .content .table td { display: block; width: 100%; }
+  .content .table { min-width: 0 !important; border-collapse: separate; }
+  .content .table thead { display: none; }
+  .content .table tbody tr { border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 0 0 10px; background: var(--surface); }
+  .content .card .table tbody tr { margin: 8px 0; }
+  .content .table tbody tr:hover { background: var(--surface); }
+  .content .table tr.row-success, .content .table tr.row-failure { border-left-width: 4px; }
+  /* Etiqueta a la izquierda; el contenido (uno o varios elementos) apilado a la derecha. */
+  .content .table td { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 6px 0; border: 0 !important; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+  .content .table td > * { grid-column: 2; justify-self: end; }
+  .content .table td::before { grid-column: 1; grid-row: 1 / span 3; }
+  .content .table td.num { text-align: right; }
+  .content .table td::before { content: attr(data-label); flex: none; white-space: nowrap; overflow-wrap: normal; text-align: left; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+  .content .table td[data-label=""]::before, .content .table td:not([data-label])::before { content: none; }
+  /* La primera columna es el título de la tarjeta. */
+  .content .table td:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-content: flex-start; text-align: left; font-size: 1rem; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--border) !important; }
+  .content .table td:first-child::before { content: none; }
+  .content .table td:empty { display: none; }
+  /* Botones de acción a lo ancho al final de la tarjeta. */
+  .content .table td[data-label=""] { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; padding-top: 8px; }
+  .content .table td .row, .content .table td .row-wrap { justify-content: flex-end; }
+  .content .table td .input, .content .table td .select { max-width: 60%; }
+  .content .table td .price-input { max-width: 60%; }
+}
