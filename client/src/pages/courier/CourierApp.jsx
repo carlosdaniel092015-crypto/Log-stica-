@@ -8,6 +8,7 @@ import { MapView } from '../../components/Map';
 import SignaturePad, { compressImage } from '../../components/SignaturePad';
 import { InstallBanner, PushButton } from '../../components/pwa';
 import Icon from '../../components/Icon';
+import InvoiceButtons from '../../components/InvoiceButtons';
 import ShareDialog from '../../components/ShareDialog';
 import { ItemsEditor } from '../admin/Inventory';
 import { useApp } from '../../context/AppContext';
@@ -281,7 +282,10 @@ function DeliveryCard({ order, active, distanceM, onAction, onMap, onNavigate, o
         <a className="btn" href={`tel:${order.phone}`}><Icon name="phone" />LLAMAR</a>
         <a className="btn btn-wa" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>
       </div>
-      <button className="btn btn-share" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO CON EL CLIENTE</button>
+      <div className="share-row">
+        <button className="btn btn-share" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO</button>
+        <InvoiceButtons order={order} base="/api/courier/orders" className="btn btn-share" compact />
+      </div>
       {primary}
       {(st === 'en_route' || st === 'arriving') && (
         <div className="grid grid-2" style={{ gap: 8 }}>
@@ -357,7 +361,10 @@ function History() {
         <div key={o.id} className="card" style={{ padding: 12 }}>
           <div className="row"><strong className="spacer">#{o.order_number} · {o.customer_name}</strong><StatusBadge status={o.status} /></div>
           <div className="small muted">{o.address}</div>
-          <div className="small">{dateTime(o.delivered_at || o.created_at)} · {money(o.delivery_fee, currency)}</div>
+          <div className="row" style={{ marginTop: 4 }}>
+            <span className="small spacer">{dateTime(o.delivered_at || o.created_at)} · {money(o.total ?? o.delivery_fee, currency)}</span>
+            {o.status === 'delivered' && <InvoiceButtons order={o} base="/api/courier/orders" className="btn btn-sm" compact />}
+          </div>
         </div>
       ))}
     </div>

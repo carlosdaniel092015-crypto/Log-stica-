@@ -62,6 +62,11 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 - El mensajero puede **solicitar inventario** indicando cantidades; el administrador las aprueba ajustándolas si hace falta.
 - **En vivo y sin recargar**: los pedidos entregados se resaltan en **verde** y los no entregados en **rojo** (lista de pedidos, avisos emergentes y feed "Entregas en vivo"). Se guarda el historial de movimientos.
 
+**Empresa, accesos y facturas**
+- **Nombre, logo, RNC y dirección** de la empresa en *Configuración → Empresa*. El logo se sube desde el panel (PNG, JPG, SVG o WebP; se reduce a PNG en el navegador) y aparece en el panel, el inicio de sesión, el seguimiento y las facturas. El RNC es opcional: si está vacío no aparece.
+- **Mensajeros con clave temporal:** la empresa los crea desde *Mensajeros → Nuevo mensajero* o desde *Usuarios*, con una clave generada. Se puede enviar al mensajero por WhatsApp o copiar. Al iniciar sesión por primera vez, el mensajero debe elegir su propia clave. Hasta entonces, el servidor bloquea el resto de la API y el tiempo real. Restablecer la clave desde *Usuarios* vuelve a crear una clave temporal.
+- **Factura en PDF** con logo, nombre de la empresa, RNC (si existe), cliente, productos, envío, total y tipo de pago. Se envía desde el detalle del pedido (panel) o desde la tarjeta e historial del mensajero. En el teléfono abre el menú de compartir (WhatsApp, correo…) con el PDF adjunto; en computadora se descarga. No sustituye un comprobante fiscal (NCF).
+
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
 - **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA (abre la navegación en **Google Maps o Waze**, a elección del mensajero, y recuerda la última app usada), LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.

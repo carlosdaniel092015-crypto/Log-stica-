@@ -50,6 +50,9 @@ const ACTIONS = {
   'auth.login_failed': 'Intento de acceso fallido',
   'auth.password_change': 'Cambió su contraseña',
   'settings.update': 'Cambió la configuración',
+  'settings.logo': 'Cambió el logo de la empresa',
+  'settings.logo_remove': 'Quitó el logo de la empresa',
+  'order.invoice': 'Generó la factura',
   'branch.create': 'Creó sucursal',
   'branch.update': 'Editó sucursal',
 };

@@ -44,7 +44,7 @@ router.post(
     setSessionCookie(res, signSession(user), { remember: req.body.remember !== false });
     req.user = { id: user.id, name: user.name };
     await audit(req, { action: 'auth.login', entity: 'user', entityId: user.id });
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role_id } });
+    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role_id, must_change_password: bool(user.must_change_password) } });
   })
 );
 
@@ -70,7 +70,8 @@ router.put(
   ah(async (req, res) => {
     const user = await db('users').where({ id: req.user.id }).first();
     if (!(await bcrypt.compare(req.body.current_password, user.password_hash))) throw badRequest('La contraseña actual no es correcta.');
-    const updated = { password_hash: await bcrypt.hash(req.body.new_password, 12), token_version: user.token_version + 1, updated_at: now() };
+    if (req.body.new_password === req.body.current_password) throw badRequest('La nueva contraseña debe ser diferente a la actual.');
+    const updated = { password_hash: await bcrypt.hash(req.body.new_password, 12), must_change_password: false, token_version: user.token_version + 1, updated_at: now() };
     await db('users').where({ id: user.id }).update(updated);
     setSessionCookie(res, signSession({ ...user, ...updated }));
     await audit(req, { action: 'auth.password_change', entity: 'user', entityId: user.id });

@@ -37,6 +37,8 @@ function attachRealtime(httpServer) {
       // Frontend en otro dominio: token corto de /api/auth/socket-token. Mismo dominio: cookie.
       socket.data.user = (authToken && (await resolveSession(authToken, { audience: SOCKET_AUDIENCE })))
         || (await resolveSession(authToken || cookies[config.auth.cookieName]));
+      // Con clave temporal no recibe datos en tiempo real hasta cambiarla.
+      if (socket.data.user?.must_change_password) socket.data.user = null;
       next();
     } catch (err) {
       next(err);

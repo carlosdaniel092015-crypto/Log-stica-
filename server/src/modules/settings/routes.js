@@ -3,11 +3,11 @@ const express = require('express');
 const { z } = require('zod');
 const { db, bool, now } = require('../../db');
 const { uuid } = require('../../utils/crypto');
-const { ah, notFound } = require('../../utils/http');
+const { ah, notFound, badRequest } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
 const { requirePermission, requireStaff } = require('../../middleware/auth');
 const { audit, diff } = require('../audit/service');
-const { getSettings, updateSettings, DEFAULTS } = require('./service');
+const { getSettings, updateSettings, DEFAULTS, parseLogo, setLogo, clearLogo } = require('./service');
 const { availableChannels } = require('../notifications/channels');
 const maps = require('../maps/google');
 const { STATUSES } = require('../orders/statuses');
@@ -17,6 +17,9 @@ const router = express.Router();
 const schema = z.object({
   company_name: z.string().trim().min(2).max(120),
   company_logo_url: z.string().trim().max(500).refine((v) => v === '' || /^https:\/\/|^\//.test(v), 'debe ser una URL https'),
+  company_rnc: z.string().trim().max(20).refine((v) => v === '' || /^[0-9-]{9,13}$/.test(v), 'RNC no válido (solo números y guiones)'),
+  company_address: z.string().trim().max(200),
+  invoice_note: z.string().trim().max(300),
   company_phone: z.string().trim().max(40),
   company_whatsapp: z.string().trim().max(40),
   company_email: z.string().trim().max(190),
@@ -54,6 +57,21 @@ router.put('/', requirePermission('settings.manage'), validate(schema), ah(async
   const { oldValue, newValue, changed } = diff(before, req.body);
   if (changed) await audit(req, { action: 'settings.update', entity: 'settings', oldValue, newValue });
   res.json({ settings: updated });
+}));
+
+/** Logo de la empresa (PNG o JPEG; el navegador lo reduce antes de enviarlo). */
+router.put('/logo', requirePermission('settings.manage'), validate(z.object({ data_url: z.string().max(600_000) })), ah(async (req, res) => {
+  const logo = parseLogo(req.body.data_url);
+  if (!logo) throw badRequest('El logo debe ser una imagen PNG o JPG de máximo 400 KB.');
+  const settings = await setLogo(logo);
+  await audit(req, { action: 'settings.logo', entity: 'settings', newValue: { bytes: logo.buffer.length } });
+  res.json({ settings });
+}));
+
+router.delete('/logo', requirePermission('settings.manage'), ah(async (req, res) => {
+  const settings = await clearLogo();
+  await audit(req, { action: 'settings.logo_remove', entity: 'settings' });
+  res.json({ settings });
 }));
 
 /** Sucursales (preparado para múltiples sucursales/almacenes). */

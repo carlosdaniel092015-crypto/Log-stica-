@@ -77,6 +77,7 @@ async function resolveSession(token, { audience = 'logistica-rd' } = {}) {
     role: user.role_id,
     permissions,
     isStaff: STAFF_ROLES.includes(user.role_id),
+    must_change_password: bool(user.must_change_password),
   };
   if (user.role_id === 'courier') {
     const courier = await db('couriers').where({ user_id: user.id }).first('id');
@@ -121,6 +122,18 @@ function requirePermission(perm) {
 
 const requireStaff = requireRole(...STAFF_ROLES);
 
+/**
+ * Con clave temporal solo se permite ver la sesión, cambiar la clave y salir:
+ * el resto de la API responde 403 hasta que el usuario elija su propia contraseña.
+ */
+const PASSWORD_CHANGE_ALLOWED = ['GET /auth/me', 'PUT /auth/me/password', 'POST /auth/logout', 'POST /auth/login'];
+function requirePasswordChanged(req, _res, next) {
+  if (!req.user?.must_change_password) return next();
+  if (req.path.startsWith('/public/') || req.path.startsWith('/track/')) return next();
+  if (PASSWORD_CHANGE_ALLOWED.includes(`${req.method} ${req.path}`)) return next();
+  next(forbidden('Debes cambiar tu contraseña temporal antes de continuar.'));
+}
+
 module.exports = {
   STAFF_ROLES,
   SOCKET_AUDIENCE,
@@ -135,6 +148,7 @@ module.exports = {
   requireRole,
   requirePermission,
   requireStaff,
+  requirePasswordChanged,
   hasPermission,
   clearRoleCache,
 };

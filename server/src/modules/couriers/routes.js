@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const { sendInvoice } = require('../orders/invoice');
 const { z } = require('zod');
 const { db } = require('../../db');
 const { ah, notFound, forbidden } = require('../../utils/http');
@@ -91,6 +92,12 @@ self.get('/orders/:id', ah(async (req, res) => {
   const order = await orders.getOrder(req.params.id);
   if (!order || order.courier_id !== req.user.courierId) throw notFound('Pedido no encontrado.');
   res.json(orders.courierView(order));
+}));
+
+self.get('/orders/:id/invoice', ah(async (req, res) => {
+  const order = await orders.getOrder(req.params.id);
+  if (!order || order.courier_id !== req.user.courierId) throw notFound('Pedido no encontrado.');
+  await sendInvoice(req, res, order);
 }));
 
 /** Inventario del mensajero y sus solicitudes. */

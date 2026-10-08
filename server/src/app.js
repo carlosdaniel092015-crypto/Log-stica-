@@ -10,8 +10,8 @@ const config = require('./config');
 const { HttpError } = require('./utils/http');
 const { rateLimitStore, redisHealthy } = require('./infra/redis');
 const { db } = require('./db');
-const { authOptional, requireStaff } = require('./middleware/auth');
-const { getSettings, publicSettings } = require('./modules/settings/service');
+const { authOptional, requireStaff, requirePasswordChanged } = require('./middleware/auth');
+const { getSettings, publicSettings, getLogo } = require('./modules/settings/service');
 const { getVapid } = require('./modules/notifications/push');
 const { STATUS_LABELS, STAFF_TRANSITIONS } = require('./modules/orders/statuses');
 const { COURIER_STATUS_LABELS } = require('./modules/couriers/service');
@@ -92,6 +92,7 @@ function createApp() {
     next();
   });
   api.use(authOptional);
+  api.use(requirePasswordChanged);
 
   api.get('/public/config', async (_req, res, next) => {
     try {
@@ -105,6 +106,16 @@ function createApp() {
         transitions: STAFF_TRANSITIONS,
         courierStatuses: COURIER_STATUS_LABELS,
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  api.get('/public/logo', async (_req, res, next) => {
+    try {
+      const logo = await getLogo();
+      if (!logo) return res.status(404).end();
+      res.set({ 'Content-Type': logo.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' }).send(logo.buffer);
     } catch (err) {
       next(err);
     }

@@ -4,6 +4,7 @@ import { relative } from '../../lib/format';
 import { Avatar, Empty, Field, Modal, Spinner, useAction, useAsync } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { useApp } from '../../context/AppContext';
+import { CredentialsModal, generatePassword, ResetPasswordModal, TempPasswordField } from '../../components/TempPassword';
 
 const ROLE_LABELS = { admin: 'Administrador', dispatcher: 'Despachador', courier: 'Mensajero' };
 const PERMISSIONS = {
@@ -13,7 +14,8 @@ const PERMISSIONS = {
 };
 
 function UserModal({ user, onClose, onSaved }) {
-  const [form, setForm] = useState({ role: user?.role || 'dispatcher', name: user?.name || '', email: user?.email || '', phone: user?.phone || '', password: '', vehicle: user?.vehicle || '', plate: user?.plate || '' });
+  const [form, setForm] = useState({ role: user?.role || 'dispatcher', name: user?.name || '', email: user?.email || '', phone: user?.phone || '', password: user ? '' : generatePassword(), vehicle: user?.vehicle || '', plate: user?.plate || '' });
+  const [created, setCreated] = useState(null);
   const [busy, run] = useAction();
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const submit = (e) => {
@@ -23,10 +25,14 @@ function UserModal({ user, onClose, onSaved }) {
         const body = { name: form.name, email: form.email, phone: form.phone || null };
         if (user.role === 'courier') Object.assign(body, { vehicle: form.vehicle || null, plate: form.plate || null });
         await api.put(`/api/users/${user.id}`, body);
-      } else await api.post('/api/users', { ...form, phone: form.phone || null, vehicle: form.vehicle || null, plate: form.plate || null });
-      onSaved();
+        onSaved();
+      } else {
+        await api.post('/api/users', { ...form, phone: form.phone || null, vehicle: form.vehicle || null, plate: form.plate || null, must_change_password: true });
+        setCreated(form);
+      }
     }, user ? 'Usuario actualizado.' : 'Usuario creado.');
   };
+  if (created) return <CredentialsModal name={created.name} email={created.email} password={created.password} phone={created.phone} onClose={onSaved} />;
   return (
     <Modal title={user ? 'Editar usuario' : 'Nuevo usuario'} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" form="user-form" disabled={busy}>Guardar</button></>}>
       <form id="user-form" className="form-grid" onSubmit={submit}>
@@ -36,7 +42,7 @@ function UserModal({ user, onClose, onSaved }) {
         <Field label="Nombre"><input className="input" value={form.name} onChange={set('name')} required /></Field>
         <Field label="Teléfono"><input className="input" type="tel" value={form.phone} onChange={set('phone')} /></Field>
         <Field label="Correo" className={user ? 'full' : ''}><input className="input" type="email" value={form.email} onChange={set('email')} required /></Field>
-        {!user && <Field label="Contraseña inicial" hint="Mínimo 8 caracteres"><input className="input" type="password" value={form.password} onChange={set('password')} required minLength={8} autoComplete="new-password" /></Field>}
+        {!user && <TempPasswordField value={form.password} onChange={(password) => setForm({ ...form, password })} />}
         {form.role === 'courier' && (<><Field label="Vehículo"><input className="input" value={form.vehicle} onChange={set('vehicle')} /></Field><Field label="Placa"><input className="input" value={form.plate} onChange={set('plate')} /></Field></>)}
       </form>
     </Modal>
@@ -75,6 +81,7 @@ export default function Users() {
   const [role, setRole] = useState('');
   const [q, setQ] = useState('');
   const [modal, setModal] = useState(null);
+  const [resetting, setResetting] = useState(null);
   const [roles, setRoles] = useState(false);
   const { data, loading, reload } = useAsync(() => api.get(`/api/users${qs({ role, q })}`), [role, q]);
   const [busy, run] = useAction();
@@ -103,12 +110,15 @@ export default function Users() {
                     <td><span className="cell-person"><Avatar name={u.name} soft /><strong>{u.name}</strong></span></td>
                     <td className="small">{u.email}</td>
                     <td>{ROLE_LABELS[u.role]}</td>
-                    <td><span className="badge" style={{ '--c': u.active ? 'var(--success)' : 'var(--muted)' }}>{u.active ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                      <span className="badge" style={{ '--c': u.active ? 'var(--success)' : 'var(--muted)' }}>{u.active ? 'Activo' : 'Inactivo'}</span>
+                      {u.must_change_password && <> <span className="badge" style={{ '--c': 'var(--warning)' }} title="Debe cambiarla al iniciar sesión">Clave temporal</span></>}
+                    </td>
                     <td className="small muted">{u.last_login_at ? relative(u.last_login_at) : 'Nunca'}</td>
                     <td className="nowrap">
                       <button className="btn btn-sm" onClick={() => setModal(u)}><Icon name="edit" /></button>{' '}
                       <button className="btn btn-sm" disabled={busy || u.id === me.id} onClick={() => run(async () => { await api.post(`/api/users/${u.id}/active`, { active: !u.active }); reload(true); }, u.active ? 'Usuario desactivado; sus sesiones se cerraron.' : 'Usuario activado.')}>{u.active ? 'Desactivar' : 'Activar'}</button>{' '}
-                      <button className="btn btn-sm btn-ghost" onClick={() => { const p = window.prompt('Nueva contraseña (mínimo 8 caracteres):'); if (p) run(() => api.post(`/api/users/${u.id}/password`, { password: p }), 'Contraseña restablecida.'); }}>Restablecer clave</button>
+                      <button className="btn btn-sm btn-ghost" disabled={u.id === me.id} onClick={() => setResetting(u)}>Restablecer clave</button>
                     </td>
                   </tr>
                 ))}
@@ -120,6 +130,7 @@ export default function Users() {
       </div>
       {modal && <UserModal user={modal.id ? modal : null} onClose={() => setModal(null)} onSaved={() => { setModal(null); reload(true); }} />}
       {roles && <RolesModal onClose={() => setRoles(false)} />}
+      {resetting && <ResetPasswordModal user={resetting} onClose={() => { setResetting(null); reload(true); }} />}
     </div>
   );
 }

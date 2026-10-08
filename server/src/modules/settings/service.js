@@ -8,6 +8,9 @@ const { db, json, now } = require('../../db');
 const DEFAULTS = {
   company_name: 'Mi Empresa de Entregas',
   company_logo_url: '',
+  company_rnc: '', // opcional: si está vacío no aparece en la factura
+  company_address: '',
+  invoice_note: 'Gracias por su compra.',
   company_phone: '',
   company_whatsapp: '',
   company_email: '',
@@ -67,6 +70,7 @@ function publicSettings(s) {
   return {
     company_name: s.company_name,
     company_logo_url: s.company_logo_url,
+    company_rnc: s.company_rnc,
     company_phone: s.company_phone,
     company_whatsapp: s.company_whatsapp,
     company_email: s.company_email,
@@ -76,4 +80,53 @@ function publicSettings(s) {
   };
 }
 
-module.exports = { DEFAULTS, getSettings, updateSettings, publicSettings };
+/**
+ * Logo de la empresa: se guarda en la base (fila aparte, fuera de DEFAULTS para que no viaje
+ * en cada respuesta de configuración) y se sirve en /api/public/logo.
+ */
+const LOGO_KEY = 'company_logo_data';
+const LOGO_MAX_BYTES = 400 * 1024;
+const LOGO_TYPES = { 'image/png': [0x89, 0x50, 0x4e, 0x47], 'image/jpeg': [0xff, 0xd8, 0xff] };
+
+/** Valida un data URL PNG/JPEG y devuelve { mime, buffer } o null. */
+function parseLogo(dataUrl) {
+  const m = /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) return null;
+  const buffer = Buffer.from(m[2], 'base64');
+  const magic = LOGO_TYPES[m[1]];
+  if (!buffer.length || buffer.length > LOGO_MAX_BYTES || !magic.every((b, i) => buffer[i] === b)) return null;
+  return { mime: m[1], buffer };
+}
+
+async function getLogo() {
+  const row = await db('settings').where({ key: LOGO_KEY }).first();
+  const v = row && json(row.value);
+  return v?.b64 ? { mime: v.mime, buffer: Buffer.from(v.b64, 'base64'), version: v.version } : null;
+}
+
+async function upsert(trx, key, value) {
+  const ts = now();
+  if (await trx('settings').where({ key }).first()) await trx('settings').where({ key }).update({ value, updated_at: ts });
+  else await trx('settings').insert({ key, value, updated_at: ts });
+}
+
+async function setLogo({ mime, buffer }) {
+  const version = Date.now().toString(36);
+  await db.transaction(async (trx) => {
+    await upsert(trx, LOGO_KEY, JSON.stringify({ mime, b64: buffer.toString('base64'), version }));
+    await upsert(trx, 'company_logo_url', JSON.stringify(`/api/public/logo?v=${version}`));
+  });
+  cache = null;
+  return getSettings();
+}
+
+async function clearLogo() {
+  await db.transaction(async (trx) => {
+    await trx('settings').where({ key: LOGO_KEY }).del();
+    await upsert(trx, 'company_logo_url', JSON.stringify(''));
+  });
+  cache = null;
+  return getSettings();
+}
+
+module.exports = { DEFAULTS, getSettings, updateSettings, publicSettings, parseLogo, getLogo, setLogo, clearLogo };

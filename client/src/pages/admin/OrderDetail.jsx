@@ -9,6 +9,7 @@ import { MapView } from '../../components/Map';
 import AddressPicker from '../../components/AddressPicker';
 import ShareDialog from '../../components/ShareDialog';
 import Icon from '../../components/Icon';
+import InvoiceButtons from '../../components/InvoiceButtons';
 import { can, useApp } from '../../context/AppContext';
 
 function EditOrder({ order, onClose, onSaved }) {
@@ -154,6 +155,7 @@ export default function OrderDetail() {
         </div>
         <div className="row-wrap">
           {can(user, 'orders.manage') && !closed && <button className="btn" onClick={() => setEditing(true)}><Icon name="edit" /> Editar</button>}
+          <InvoiceButtons order={order} />
           {closed
             ? <span className="small muted">Seguimiento cerrado: el enlace del cliente venció al {order.status === 'delivered' ? 'entregar' : 'cancelar'}.</span>
             : <button className="btn btn-primary" onClick={() => setSharing(true)}><Icon name="share" /> Compartir seguimiento</button>}

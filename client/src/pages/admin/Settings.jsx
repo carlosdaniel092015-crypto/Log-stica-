@@ -2,6 +2,56 @@ import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Field, Spinner, useAction, useAsync } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
+import Icon from '../../components/Icon';
+
+/** Reduce la imagen en el navegador (máx. 512 px) y la convierte a PNG para el panel y las facturas. */
+function imageToPng(file, max = 512) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth || max, img.naturalHeight || max));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round((img.naturalWidth || max) * scale));
+      canvas.height = Math.max(1, Math.round((img.naturalHeight || max) * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen.')); };
+    img.src = url;
+  });
+}
+
+function LogoUploader({ value, onChange }) {
+  const [busy, run] = useAction();
+  const upload = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    run(async () => {
+      if (!file.type.startsWith('image/')) throw new Error('Elige un archivo de imagen.');
+      const res = await api.put('/api/settings/logo', { data_url: await imageToPng(file) });
+      onChange(res.settings);
+    }, 'Logo actualizado.');
+  };
+  return (
+    <div className="logo-uploader">
+      <div className="logo-preview">{value ? <img src={value} alt="Logo de la empresa" /> : <Icon name="image" size={26} />}</div>
+      <div className="stack-sm" style={{ gap: 6 }}>
+        <strong>Logo de la empresa</strong>
+        <small className="muted">PNG, JPG, SVG o WebP. Se muestra en el panel, el inicio de sesión, el seguimiento y las facturas.</small>
+        <div className="row-wrap">
+          <label className={`btn btn-sm ${busy ? 'disabled' : ''}`}>
+            <Icon name="upload" /> {value ? 'Cambiar logo' : 'Subir logo'}
+            <input type="file" accept="image/*" hidden onChange={upload} disabled={busy} />
+          </label>
+          {value && <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => run(async () => onChange((await api.del('/api/settings/logo')).settings), 'Logo eliminado.')}>Quitar</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PRIORITY_LABELS = { custom: 'Zona personalizada', sector: 'Sector', municipality: 'Municipio', province: 'Provincia' };
 const NOTIFY_STATUSES = ['preparing', 'ready', 'assigned', 'en_route', 'arriving', 'arrived', 'delivered', 'failed', 'customer_unavailable', 'rescheduled', 'cancelled'];
@@ -27,7 +77,8 @@ export default function Settings() {
   };
   const save = () => run(async () => {
     const { vapid_keys, timezone, currency_code, ...body } = s; // eslint-disable-line no-unused-vars
-    for (const k of Object.keys(body)) if (body[k] === '') delete body[k];
+    // Un número vacío no se envía; un texto vacío sí (p. ej. quitar el RNC).
+    for (const k of Object.keys(body)) if (body[k] === '' && typeof data.defaults?.[k] === 'number') delete body[k];
     const res = await api.put('/api/settings', body);
     setS(res.settings);
     reloadConfig();
@@ -54,14 +105,17 @@ export default function Settings() {
 
       {tab === 'empresa' && (
         <div className="setting-list">
+          <div className="setting-row"><LogoUploader value={s.company_logo_url} onChange={(st) => { setS({ ...s, company_logo_url: st.company_logo_url }); reloadConfig(); }} /></div>
           <div className="setting-row"><div className="form-grid" style={{ flex: 1 }}>
             <Field label="Nombre de la empresa"><input className="input" value={s.company_name} onChange={txt('company_name')} /></Field>
-            <Field label="Logo (URL https)" hint="Imagen cuadrada recomendada"><input className="input" value={s.company_logo_url} onChange={txt('company_logo_url')} placeholder="https://…" /></Field>
+            <Field label="RNC (opcional)" hint="Si lo dejas vacío no aparece en la factura"><input className="input" value={s.company_rnc} onChange={txt('company_rnc')} placeholder="1-31-12345-6" inputMode="numeric" /></Field>
+            <Field label="Dirección (opcional)" className="full"><input className="input" value={s.company_address} onChange={txt('company_address')} placeholder="Av. Winston Churchill #95, Piantini, Santo Domingo" /></Field>
             <Field label="Teléfono"><input className="input" value={s.company_phone} onChange={txt('company_phone')} placeholder="809-555-0100" /></Field>
             <Field label="WhatsApp"><input className="input" value={s.company_whatsapp} onChange={txt('company_whatsapp')} placeholder="809-555-0100" /></Field>
             <Field label="Correo"><input className="input" value={s.company_email} onChange={txt('company_email')} /></Field>
             <Field label="Horario"><input className="input" value={s.business_hours} onChange={txt('business_hours')} /></Field>
             <Field label="Moneda (símbolo)" hint="Peso dominicano"><input className="input" value={s.currency_symbol} onChange={txt('currency_symbol')} /></Field>
+            <Field label="Nota al pie de la factura" className="full"><input className="input" value={s.invoice_note} onChange={txt('invoice_note')} placeholder="Gracias por su compra." /></Field>
           </div></div>
         </div>
       )}

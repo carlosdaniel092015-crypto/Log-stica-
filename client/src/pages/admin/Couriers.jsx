@@ -5,6 +5,7 @@ import { time, whatsappUrl } from '../../lib/format';
 import { courierColor } from '../../lib/maps';
 import { Avatar, CourierBadge, Empty, Field, Modal, Spinner, StatusBadge, useAction, useAsync, useSocketEvent } from '../../components/ui';
 import Icon from '../../components/Icon';
+import { CredentialsModal, generatePassword, TempPasswordField } from '../../components/TempPassword';
 import { can, useApp } from '../../context/AppContext';
 
 function RouteEditor({ courier, onClose }) {
@@ -49,16 +50,18 @@ function RouteEditor({ courier, onClose }) {
 }
 
 function NewCourier({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', vehicle: '', plate: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: generatePassword(), vehicle: '', plate: '' });
+  const [created, setCreated] = useState(false);
   const [busy, run] = useAction();
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  if (created) return <CredentialsModal name={form.name} email={form.email} password={form.password} phone={form.phone} onClose={onCreated} />;
   return (
     <Modal title="Nuevo mensajero" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" form="new-courier" disabled={busy}>Crear</button></>}>
-      <form id="new-courier" className="form-grid" onSubmit={(e) => { e.preventDefault(); run(async () => { await api.post('/api/users', { ...form, role: 'courier' }); onCreated(); }, 'Mensajero creado.'); }}>
+      <form id="new-courier" className="form-grid" onSubmit={(e) => { e.preventDefault(); run(async () => { await api.post('/api/users', { ...form, role: 'courier', must_change_password: true }); setCreated(true); }, 'Mensajero creado.'); }}>
         <Field label="Nombre completo"><input className="input" value={form.name} onChange={set('name')} required /></Field>
         <Field label="Teléfono"><input className="input" type="tel" value={form.phone} onChange={set('phone')} required /></Field>
         <Field label="Correo (usuario)"><input className="input" type="email" value={form.email} onChange={set('email')} required /></Field>
-        <Field label="Contraseña inicial" hint="Mínimo 8 caracteres"><input className="input" type="password" value={form.password} onChange={set('password')} required minLength={8} autoComplete="new-password" /></Field>
+        <TempPasswordField value={form.password} onChange={(password) => setForm({ ...form, password })} />
         <Field label="Vehículo"><input className="input" value={form.vehicle} onChange={set('vehicle')} placeholder="Motor, carro…" /></Field>
         <Field label="Placa"><input className="input" value={form.plate} onChange={set('plate')} /></Field>
       </form>
