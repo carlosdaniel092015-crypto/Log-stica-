@@ -105,6 +105,10 @@ export function ZoneFormModal({ zone, allZones = [], onClose, onSaved }) {
     zone?.geometry_type === 'polygon' ? { type: 'polygon', polygon: zone.polygon } : zone?.geometry_type === 'circle' ? { type: 'circle', center_lat: zone.center_lat, center_lng: zone.center_lng, radius_m: zone.radius_m } : { type: 'none' }
   );
   const [busy, run] = useAction();
+  const removeZone = () => {
+    if (!window.confirm(`¿Eliminar la zona "${zone.name}"? Los pedidos anteriores conservan su precio. Si solo quieres dejar de usarla, puedes desactivarla.`)) return;
+    run(async () => { await api.del(`/api/zones/${zone.id}`); onSaved(); }, 'Zona eliminada.');
+  };
   const rates = useAsync(() => (zone?.id ? api.get(`/api/zones/${zone.id}/rates`) : Promise.resolve([])), [zone?.id]);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const t = tree.data;
@@ -127,7 +131,10 @@ export function ZoneFormModal({ zone, allZones = [], onClose, onSaved }) {
   };
 
   return (
-    <Modal title={zone?.id ? `Editar zona: ${zone.name}` : 'Nueva zona de entrega'} size="xl" onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" form="zone-form" disabled={busy}>Guardar zona</button></>}>
+    <Modal title={zone?.id ? `Editar zona: ${zone.name}` : 'Nueva zona de entrega'} size="xl" onClose={onClose} footer={<>
+      {zone?.id && <button type="button" className="btn btn-ghost" style={{ color: 'var(--danger)', marginRight: 'auto' }} disabled={busy} onClick={removeZone}><Icon name="trash" /> Eliminar zona</button>}
+      <button className="btn" onClick={onClose}>Cancelar</button><button className="btn btn-primary" form="zone-form" disabled={busy}>Guardar zona</button>
+    </>}>
       <form id="zone-form" className="grid" style={{ gridTemplateColumns: 'minmax(0, 340px) minmax(0, 1fr)', alignItems: 'start' }} data-responsive="zone" onSubmit={submit}>
         <div className="stack">
           <Field label="Nombre de la zona"><input className="input" value={form.name} onChange={set('name')} required placeholder="Ej.: Los Alcarrizos" /></Field>
