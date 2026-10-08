@@ -70,5 +70,13 @@ test('el cliente recibe el cambio "En camino" en tiempo real con su token', asyn
   await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'en_route' });
   const v = await update;
   assert.equal(v.order_number, order.order_number);
+
+  const closed = once(customer, 'tracking:closed');
+  await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'delivered', proof: { receiver_name: 'Luis' } });
+  const c = await closed;
+  assert.equal(c.status, 'delivered');
+  assert.equal(c.courier, undefined, 'el aviso de cierre no incluye datos del mensajero');
+  const rejoin = await new Promise((r) => customer.emit('track:join', { token: order.tracking_link.token }, r));
+  assert.equal(rejoin.ok, false, 'no puede volver a unirse');
   customer.close();
 });

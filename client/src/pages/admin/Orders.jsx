@@ -107,7 +107,7 @@ export default function Orders() {
                     </td>
                     <td className="small nowrap">{dateTime(o.created_at)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <button className="btn btn-sm btn-ghost" title="Compartir seguimiento" onClick={() => setSharing(o)}><Icon name="share" /></button>
+                      {!['delivered', 'cancelled'].includes(o.status) && <button className="btn btn-sm btn-ghost" title="Compartir seguimiento" onClick={() => setSharing(o)}><Icon name="share" /></button>}
                     </td>
                   </tr>
                 ))}

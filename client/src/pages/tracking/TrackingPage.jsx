@@ -88,6 +88,7 @@ export default function TrackingPage() {
   const online = useOnline();
   const [view, setView] = useState(null);
   const [error, setError] = useState(null);
+  const [closed, setClosed] = useState(null);
   const [courierPos, setCourierPos] = useState(null);
   const [fixing, setFixing] = useState(false);
   const [refText, setRefText] = useState('');
@@ -108,14 +109,21 @@ export default function TrackingPage() {
       setCourierPos(p.lat != null ? { lat: p.lat, lng: p.lng, updated_at: p.updated_at } : null);
       if (p.eta) setView((v) => (v ? { ...v, eta: { seconds: p.eta.seconds, distance_m: p.eta.distance_m, updated_at: p.updated_at } } : v));
     };
+    const onClosed = (info) => {
+      setClosed(info);
+      setView(null);
+      setCourierPos(null);
+    };
     socket.on('connect', join);
     socket.on('tracking:update', onUpdate);
+    socket.on('tracking:closed', onClosed);
     socket.on('tracking:courier', onCourier);
     if (socket.connected) join();
     return () => {
       cancelled = true;
       socket.off('connect', join);
       socket.off('tracking:update', onUpdate);
+      socket.off('tracking:closed', onClosed);
       socket.off('tracking:courier', onCourier);
     };
   }, [token, apply]);
@@ -138,6 +146,20 @@ export default function TrackingPage() {
     }
   };
 
+  if (closed) {
+    return (
+      <div className="fullscreen-center">
+        <div className="card card-body stack" style={{ maxWidth: 420, textAlign: 'center' }}>
+          <img src="/icons/icon.svg" width="56" height="56" alt="" style={{ margin: '0 auto' }} />
+          <div className="small muted">PEDIDO #{closed.order_number}</div>
+          <h1>{closed.status_label}</h1>
+          <p>{closed.message}</p>
+          <p className="small muted">Por seguridad, el seguimiento de este pedido se cerró y este enlace ya no está activo.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="fullscreen-center">
@@ -145,7 +167,7 @@ export default function TrackingPage() {
           <img src="/icons/icon.svg" width="56" height="56" alt="" style={{ margin: '0 auto' }} />
           <h1>Enlace no disponible</h1>
           <p className="muted">{error}</p>
-          <p className="small muted">Si necesitas ayuda con tu pedido, contacta a la empresa que te lo envió.</p>
+          <p className="small muted">Si tu pedido ya fue entregado o cancelado, el seguimiento se cierra automáticamente por seguridad. Si necesitas ayuda, contacta a la empresa que te lo envió.</p>
         </div>
       </div>
     );
@@ -196,7 +218,6 @@ export default function TrackingPage() {
 
         <div className="card card-body">
           <Steps steps={view.steps} />
-          {view.delivered && <div className="alert alert-success small">Entregado a {view.delivered.receiver_name || 'destinatario'} el {fullDateTime(view.delivered.at)}.</div>}
         </div>
 
         {view.courier && (
@@ -270,7 +291,7 @@ export default function TrackingPage() {
         </div>
 
         <InstallBanner storageKey="lrd_install_tracking" />
-        <p className="tiny muted" style={{ textAlign: 'center' }}>Este enlace es privado y solo muestra tu pedido. No necesitas cuenta ni instalar ninguna aplicación.</p>
+        <p className="tiny muted" style={{ textAlign: 'center' }}>Este enlace es privado, solo muestra tu pedido y se desactiva al completarse la entrega. No necesitas cuenta ni instalar ninguna aplicación.</p>
       </div>
 
       {fixing && (

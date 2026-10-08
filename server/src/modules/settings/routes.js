@@ -41,9 +41,7 @@ const schema = z.object({
   push_notifications_enabled: z.boolean(),
   notify_customer_statuses: z.array(z.enum(STATUSES)),
   tracking_link_expiry_hours: z.number().int().min(0).max(24 * 365),
-  tracking_link_expire_after_delivery_hours: z.number().int().min(0).max(24 * 365),
   tracking_share_message: z.string().max(1000).refine((v) => v.includes('{enlace}'), 'debe incluir {enlace}'),
-  allow_customer_signup: z.boolean(),
 }).partial();
 
 router.get('/', requireStaff, ah(async (_req, res) => {

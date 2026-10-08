@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { homeFor } from '../App';
 import { Field } from '../components/ui';
@@ -53,7 +53,7 @@ export default function Login() {
         <form className="card card-body stack" onSubmit={submit}>
           <div>
             <h1>Iniciar sesión</h1>
-            <p className="muted small" style={{ marginTop: 4 }}>Administradores, despachadores, mensajeros y clientes con cuenta.</p>
+            <p className="muted small" style={{ marginTop: 4 }}>Acceso para administradores, despachadores y mensajeros.</p>
           </div>
           {error && <div className="alert alert-danger">{error}</div>}
           <Field label="Correo electrónico">
@@ -63,14 +63,9 @@ export default function Login() {
             <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </Field>
           <button className="btn btn-primary btn-lg btn-block" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
-          {company?.allow_customer_signup && (
-            <p className="small muted" style={{ textAlign: 'center' }}>
-              ¿Cliente frecuente? <Link to="/registro">Crea una cuenta opcional</Link>
-            </p>
-          )}
           <div className="alert alert-info small row" style={{ alignItems: 'flex-start' }}>
             <Icon name="link" size={18} />
-            <span>¿Quieres seguir un pedido? No necesitas cuenta: abre el enlace de seguimiento que recibiste por WhatsApp, SMS o correo.</span>
+            <span>¿Eres cliente? No necesitas cuenta: abre el enlace de seguimiento que te enviamos por WhatsApp, SMS o correo.</span>
           </div>
         </form>
       </section>

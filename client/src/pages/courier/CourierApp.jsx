@@ -8,6 +8,7 @@ import { MapView, fitTo, syncMarkers } from '../../components/Map';
 import SignaturePad, { compressImage } from '../../components/SignaturePad';
 import { InstallBanner, PushButton } from '../../components/pwa';
 import Icon from '../../components/Icon';
+import ShareDialog from '../../components/ShareDialog';
 import { useApp } from '../../context/AppContext';
 import { useTracker, useWakeLock } from './useTracker';
 
@@ -174,7 +175,7 @@ function OrderMap({ order, me, onClose }) {
   );
 }
 
-function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, busy }) {
+function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onShare, busy }) {
   const { currency } = useApp();
   const st = order.status;
   const primary = (() => {
@@ -222,6 +223,7 @@ function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, bus
         <a className="btn" href={`tel:${order.phone}`}><Icon name="phone" />LLAMAR</a>
         <a className="btn" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>
       </div>
+      <button className="btn btn-sm" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO CON EL CLIENTE</button>
       {primary}
       {(st === 'en_route' || st === 'arriving') && (
         <div className="grid grid-2" style={{ gap: 8 }}>
@@ -260,6 +262,7 @@ export default function CourierApp() {
   const [sort, setSort] = useState('route');
   const [outcome, setOutcome] = useState(null);
   const [mapOrder, setMapOrder] = useState(null);
+  const [shareOrder, setShareOrder] = useState(null);
   const [pending, setPending] = useState(outboxSize());
   const [busy, run] = useAction();
   const courier = me.data?.courier;
@@ -403,7 +406,7 @@ export default function CourierApp() {
               </select>
             </div>
             {orders.loading && !orders.data ? <Spinner center /> : sorted.length === 0 ? <Empty icon="box" title="No tienes entregas asignadas">Cuando te asignen un pedido aparecerá aquí al instante.</Empty> : (
-              sorted.map(({ o, d }) => <DeliveryCard key={o.id} order={o} distanceM={d} active={o.id === activeOrder?.id} settings={settings} busy={busy} onAction={act} onMap={setMapOrder} />)
+              sorted.map(({ o, d }) => <DeliveryCard key={o.id} order={o} distanceM={d} active={o.id === activeOrder?.id} settings={settings} busy={busy} onAction={act} onMap={setMapOrder} onShare={setShareOrder} />)
             )}
           </>
         )}
@@ -424,6 +427,7 @@ export default function CourierApp() {
           }}
         />
       )}
+      {shareOrder && <ShareDialog orderId={shareOrder.id} orderNumber={shareOrder.order_number} endpoint={`/api/courier/orders/${shareOrder.id}/share`} manage={false} onClose={() => setShareOrder(null)} />}
       {mapOrder && <OrderMap order={mapOrder} me={position || courier.location} onClose={() => setMapOrder(null)} />}
     </div>
   );

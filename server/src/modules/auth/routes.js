@@ -4,12 +4,10 @@ const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const { db, bool, now } = require('../../db');
-const { uuid } = require('../../utils/crypto');
-const { ah, unauthorized, badRequest, conflict, forbidden } = require('../../utils/http');
+const { ah, unauthorized, badRequest, forbidden } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
 const { signSession, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
-const { getSettings } = require('../settings/service');
 
 const router = express.Router();
 
@@ -38,6 +36,8 @@ router.post(
       throw unauthorized('Correo o contraseña incorrectos.');
     }
     if (!bool(user.active)) throw forbidden('Tu cuenta está desactivada. Contacta al administrador.');
+    // Los clientes no tienen cuenta: siguen su pedido solo con el enlace privado.
+    if (!['admin', 'dispatcher', 'courier'].includes(user.role_id)) throw forbidden('Esta cuenta no tiene acceso a la plataforma.');
     await db('users').where({ id: user.id }).update({ last_login_at: now() });
     setSessionCookie(res, signSession(user));
     req.user = { id: user.id, name: user.name };
@@ -54,37 +54,6 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   res.json({ user: req.user || null });
 });
-
-/** Registro opcional de clientes frecuentes. */
-router.post(
-  '/register',
-  loginLimiter,
-  validate(z.object({
-    name: z.string().trim().min(2).max(160),
-    email: z.string().trim().toLowerCase().email(),
-    phone: z.string().trim().min(7).max(40),
-    password,
-  })),
-  ah(async (req, res) => {
-    const settings = await getSettings();
-    if (!settings.allow_customer_signup) throw forbidden('El registro de clientes no está habilitado.');
-    if (await db('users').where({ email: req.body.email }).first()) throw conflict('Ya existe una cuenta con ese correo.');
-    const ts = now();
-    const user = {
-      id: uuid(), role_id: 'customer', name: req.body.name, email: req.body.email, phone: req.body.phone,
-      password_hash: await bcrypt.hash(req.body.password, 12), active: true, token_version: 0, created_at: ts, updated_at: ts,
-    };
-    await db.transaction(async (trx) => {
-      await trx('users').insert(user);
-      // No se vinculan pedidos previos por teléfono automáticamente: sin verificar el número,
-      // cualquiera podría ver pedidos ajenos. El personal puede vincularlos desde el panel.
-      await trx('customers').insert({ id: uuid(), user_id: user.id, name: user.name, phone: user.phone, whatsapp: user.phone, email: user.email, active: true, created_at: ts, updated_at: ts });
-      await audit({ user, ip: req.ip, userAgent: req.get('user-agent') }, { action: 'auth.register', entity: 'user', entityId: user.id }, trx);
-    });
-    setSessionCookie(res, signSession(user));
-    res.status(201).json({ user: { id: user.id, name: user.name, email: user.email, role: 'customer' } });
-  })
-);
 
 router.put(
   '/me/password',

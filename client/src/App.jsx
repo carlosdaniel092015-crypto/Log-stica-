@@ -4,7 +4,6 @@ import { useApp } from './context/AppContext';
 import { Spinner } from './components/ui';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import TrackingPage from './pages/tracking/TrackingPage';
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
@@ -21,12 +20,10 @@ const Users = lazy(() => import('./pages/admin/Users'));
 const Audit = lazy(() => import('./pages/admin/Audit'));
 const Settings = lazy(() => import('./pages/admin/Settings'));
 const CourierApp = lazy(() => import('./pages/courier/CourierApp'));
-const CustomerApp = lazy(() => import('./pages/customer/CustomerApp'));
 
 export function homeFor(user) {
   if (!user) return '/login';
   if (user.role === 'courier') return '/mensajero';
-  if (user.role === 'customer') return '/cliente';
   return '/admin';
 }
 
@@ -51,7 +48,6 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/registro" element={<Register />} />
         <Route path="/seguimiento/:token" element={<TrackingPage />} />
 
         <Route path="/admin" element={<RequireRole roles={['admin', 'dispatcher']}><AdminLayout /></RequireRole>}>
@@ -71,7 +67,6 @@ export default function App() {
         </Route>
 
         <Route path="/mensajero/*" element={<RequireRole roles={['courier']}><CourierApp /></RequireRole>} />
-        <Route path="/cliente/*" element={<RequireRole roles={['customer']}><CustomerApp /></RequireRole>} />
         <Route path="*" element={<div className="fullscreen-center"><div className="empty"><h1>Página no encontrada</h1><p><a href="/">Volver al inicio</a></p></div></div>} />
       </Routes>
     </Suspense>

@@ -35,7 +35,19 @@ async function orderChanged(orderId, info = {}) {
     if (info.previousCourierId && info.previousCourierId !== order.courier_id) {
       realtime.toCourier(info.previousCourierId, 'order:removed', { id: order.id });
     }
-    realtime.toTracking(order.id, 'tracking:update', await tracking.publicView(order));
+    const closed = ['delivered', 'cancelled'].includes(order.status);
+    if (closed) {
+      // Seguimiento cerrado: se avisa a quien tenga la página abierta y se le saca del canal,
+      // sin enviar más datos del mensajero.
+      realtime.closeTracking(order.id, {
+        order_number: order.order_number,
+        status: order.status,
+        status_label: order.status_label,
+        message: tracking.statusMessage(order.status),
+      });
+    } else {
+      realtime.toTracking(order.id, 'tracking:update', await tracking.publicView(order));
+    }
     if (order.courier_id || info.previousCourierId) {
       for (const cid of [order.courier_id, info.previousCourierId].filter(Boolean)) {
         realtime.toStaff('courier:updated', await require('../couriers/service').getCourier(cid));
@@ -50,17 +62,20 @@ async function orderChanged(orderId, info = {}) {
       const status = order.status;
       const msg = CUSTOMER_MESSAGES[status];
       if (msg && (settings.notify_customer_statuses || []).includes(status) && (info.type === 'status' || status === 'assigned')) {
-        const links = await db('tracking_links').where({ order_id: order.id }).whereNull('revoked_at').select('id');
-        const customer = await db('customers').where({ id: order.customer_id }).first('user_id');
+        // Al cerrar el pedido se envía un último aviso a los enlaces recién revocados.
+        const linksQuery = db('tracking_links').where({ order_id: order.id });
+        if (!closed) linksQuery.whereNull('revoked_at');
+        const linkIds = (await linksQuery.select('id')).map((l) => l.id);
         await notify({
           audience: 'customer',
-          userIds: customer?.user_id ? [customer.user_id] : [],
-          trackingLinkIds: links.map((l) => l.id),
+          trackingLinkIds: linkIds,
           orderId: order.id,
           title: msg[0],
           body: msg[1].replace('{n}', n),
-          url: (await tracking.trackingPathFor(order.id)) || '/',
+          url: closed ? '/' : (await tracking.trackingPathFor(order.id)) || '/',
         });
+        // Ya no habrá más avisos de este pedido: se eliminan sus suscripciones push.
+        if (closed && linkIds.length) await db('push_subscriptions').whereIn('tracking_link_id', linkIds).del();
       }
     }
 

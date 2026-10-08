@@ -5,7 +5,7 @@ import { Empty, Field, Modal, Spinner, useAction, useAsync } from '../../compone
 import Icon from '../../components/Icon';
 import { useApp } from '../../context/AppContext';
 
-const ROLE_LABELS = { admin: 'Administrador', dispatcher: 'Despachador', courier: 'Mensajero', customer: 'Cliente' };
+const ROLE_LABELS = { admin: 'Administrador', dispatcher: 'Despachador', courier: 'Mensajero' };
 const PERMISSIONS = {
   'dashboard.view': 'Ver dashboard', 'orders.view': 'Ver pedidos', 'orders.manage': 'Crear y editar pedidos', 'orders.assign': 'Asignar mensajeros',
   'orders.override_fee': 'Modificar costo de envío', 'customers.manage': 'Administrar clientes', 'tracking.view': 'Ver seguimiento en vivo',
@@ -82,7 +82,7 @@ export default function Users() {
   return (
     <div>
       <div className="page-header">
-        <div><h1>Usuarios</h1><p>Cuentas de administradores, despachadores, mensajeros y clientes.</p></div>
+        <div><h1>Usuarios</h1><p>Cuentas de administradores, despachadores y mensajeros. Los clientes no tienen cuenta.</p></div>
         <div className="row-wrap">
           <button className="btn" onClick={() => setRoles(true)}><Icon name="shield" /> Roles y permisos</button>
           <button className="btn btn-primary" onClick={() => setModal({})}><Icon name="plus" /> Nuevo usuario</button>

@@ -12,7 +12,7 @@ const { audit } = require('../audit/service');
 const router = express.Router();
 router.use(requirePermission('users.manage'));
 
-const ROLE_IDS = ['admin', 'dispatcher', 'courier', 'customer'];
+const ROLE_IDS = ['admin', 'dispatcher', 'courier'];
 
 function mapUser(u) {
   return {
@@ -75,9 +75,6 @@ router.post('/', validate(userSchema), ah(async (req, res) => {
     if (b.role === 'courier') {
       const branch = await trx('branches').where({ active: true }).orderBy('created_at').first('id');
       await trx('couriers').insert({ id: uuid(), user_id: user.id, branch_id: branch?.id || null, vehicle: b.vehicle || null, plate: b.plate || null, status: 'off_duty', shift_active: false, sharing_location: false, created_at: ts, updated_at: ts });
-    }
-    if (b.role === 'customer') {
-      await trx('customers').insert({ id: uuid(), user_id: user.id, name: b.name, phone: b.phone || '', whatsapp: b.phone || null, email: b.email, active: true, created_at: ts, updated_at: ts });
     }
     await audit(req, { action: 'user.create', entity: 'user', entityId: user.id, newValue: { name: b.name, email: b.email, role: b.role } }, trx);
   });

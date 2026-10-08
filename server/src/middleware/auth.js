@@ -56,6 +56,7 @@ async function resolveSession(token) {
   }
   const user = await db('users').where({ id: payload.sub }).first();
   if (!user || !bool(user.active) || user.token_version !== payload.tv) return null;
+  if (!['admin', 'dispatcher', 'courier'].includes(user.role_id)) return null;
   const permissions = await rolePermissions(user.role_id);
   const session = {
     id: user.id,
@@ -69,10 +70,6 @@ async function resolveSession(token) {
   if (user.role_id === 'courier') {
     const courier = await db('couriers').where({ user_id: user.id }).first('id');
     session.courierId = courier?.id || null;
-  }
-  if (user.role_id === 'customer') {
-    const customer = await db('customers').where({ user_id: user.id }).first('id');
-    session.customerId = customer?.id || null;
   }
   return session;
 }

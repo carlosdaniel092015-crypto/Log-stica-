@@ -58,7 +58,7 @@ export default function Customers() {
         items.push({
           id: a.id,
           position: { lat: a.lat, lng: a.lng },
-          content: pinElement({ color: c.has_account ? '#9333ea' : '#2563eb', label: '', size: 24 }),
+          content: pinElement({ color: '#2563eb', label: '', size: 24 }),
           title: `${c.name} — ${a.formatted_address}`,
           onClick: () => navigate(`/admin/clientes/${c.id}`),
         });
@@ -73,7 +73,7 @@ export default function Customers() {
   return (
     <div>
       <div className="page-header">
-        <div><h1>Clientes</h1><p>Clientes registrados por el personal o con cuenta propia.</p></div>
+        <div><h1>Clientes</h1><p>Clientes registrados por el personal. Siguen sus pedidos con el enlace privado, sin cuenta.</p></div>
         <div className="row-wrap">
           <div className="chips">
             <button className={`chip ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>Lista</button>
@@ -85,14 +85,14 @@ export default function Customers() {
       <div className="filters"><input className="input grow" placeholder="Buscar por nombre, teléfono o correo" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {view === 'map' ? (
         <MapView className="map map-tall" center={SD_CENTER} zoom={11} onReady={(m) => { mapRef.current = m; draw(); }}>
-          <div className="map-legend"><div className="row" style={{ gap: 6 }}><span className="color-dot" style={{ background: '#2563eb' }} />Cliente</div><div className="row" style={{ gap: 6 }}><span className="color-dot" style={{ background: '#9333ea' }} />Con cuenta</div></div>
+          <div className="map-legend"><div className="row" style={{ gap: 6 }}><span className="color-dot" style={{ background: '#2563eb' }} />Dirección de cliente</div></div>
         </MapView>
       ) : (
         <div className="card">
           {loading && !data ? <Spinner center /> : (
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Dirección principal</th><th>Cuenta</th><th>Registrado</th></tr></thead>
+                <thead><tr><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Dirección principal</th><th>Registrado</th></tr></thead>
                 <tbody>
                   {(data || []).map((c) => {
                     const a = c.addresses?.find((x) => x.is_default) || c.addresses?.[0];
@@ -102,7 +102,6 @@ export default function Customers() {
                         <td>{c.phone}</td>
                         <td className="small">{c.email || '—'}</td>
                         <td className="small"><div className="ellipsis" style={{ maxWidth: 280 }}>{a?.formatted_address || '—'}</div></td>
-                        <td>{c.has_account ? <span className="badge" style={{ '--c': '#9333ea' }}>Con cuenta</span> : <span className="muted small">Sin cuenta</span>}</td>
                         <td className="small">{dateTime(c.created_at)}</td>
                       </tr>
                     );

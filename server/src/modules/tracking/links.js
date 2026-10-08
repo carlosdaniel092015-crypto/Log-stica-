@@ -4,6 +4,9 @@ const { db, now } = require('../../db');
 const { uuid, randomToken, sha256, encrypt, decrypt } = require('../../utils/crypto');
 const { getSettings } = require('../settings/service');
 
+/** Estados que cierran el seguimiento: el enlace deja de funcionar de inmediato. */
+const FINAL_STATUSES = ['delivered', 'cancelled'];
+
 const TOKEN_RE = /^[A-Za-z0-9_-]{32,128}$/;
 
 function urlFor(token) {
@@ -57,16 +60,12 @@ async function resolveToken(token, { touch = false } = {}) {
   if (link.expires_at && new Date(link.expires_at) < new Date()) return null;
   const order = await db('orders').where({ id: link.order_id }).first();
   if (!order) return null;
-  const settings = await getSettings();
-  const graceHours = Number(settings.tracking_link_expire_after_delivery_hours) || 0;
-  if (graceHours > 0 && ['delivered', 'cancelled'].includes(order.status)) {
-    const closedAt = new Date(order.delivered_at || order.updated_at);
-    if (Date.now() - closedAt.getTime() > graceHours * 3600_000) return null;
-  }
+  // Pedido entregado o cancelado: el seguimiento queda cerrado por seguridad del mensajero.
+  if (FINAL_STATUSES.includes(order.status)) return null;
   if (touch) {
     await db('tracking_links').where({ id: link.id }).update({ last_accessed_at: now(), access_count: (link.access_count || 0) + 1 });
   }
   return { link, order };
 }
 
-module.exports = { createLink, activeLink, revokeLinks, resolveToken, urlFor };
+module.exports = { createLink, activeLink, revokeLinks, resolveToken, urlFor, FINAL_STATUSES };

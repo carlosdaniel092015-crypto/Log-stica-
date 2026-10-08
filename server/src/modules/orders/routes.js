@@ -2,13 +2,12 @@
 const express = require('express');
 const { z } = require('zod');
 const { db } = require('../../db');
-const { ah, notFound } = require('../../utils/http');
+const { ah, notFound, conflict } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
 const { requirePermission } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
-const { getSettings } = require('../settings/service');
-const { createLink, activeLink, revokeLinks } = require('../tracking/links');
-const { availableChannels } = require('../notifications/channels');
+const { createLink, revokeLinks, FINAL_STATUSES } = require('../tracking/links');
+const { buildShare } = require('../tracking/share');
 const { STATUSES } = require('./statuses');
 const svc = require('./service');
 const events = require('./events');
@@ -112,36 +111,13 @@ router.post('/:id/status', requirePermission('orders.manage'), validate(z.object
 router.get('/:id/share', requirePermission('orders.view'), ah(async (req, res) => {
   const order = await svc.getOrder(req.params.id);
   if (!order) throw notFound();
-  let link = await activeLink(order.id);
-  if (!link) {
-    link = await db.transaction((trx) => createLink(trx, order.id, req.user.id));
-  }
-  const settings = await getSettings();
-  const message = String(settings.tracking_share_message)
-    .replaceAll('{cliente}', order.customer_name.split(' ')[0])
-    .replaceAll('{pedido}', order.order_number)
-    .replaceAll('{empresa}', settings.company_name)
-    .replaceAll('{enlace}', link.url);
-  const digits = (p) => String(p || '').replace(/\D/g, '');
-  const waNumber = (() => {
-    const d = digits(order.customer_whatsapp || order.phone);
-    return d.length === 10 ? `1${d}` : d; // Números dominicanos: código de país 1.
-  })();
-  res.json({
-    url: link.url,
-    expires_at: link.expires_at,
-    access_count: link.access_count || 0,
-    message,
-    whatsapp_url: `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`,
-    sms_url: `sms:${digits(order.phone)}?body=${encodeURIComponent(message)}`,
-    email_url: order.customer_email ? `mailto:${order.customer_email}?subject=${encodeURIComponent(`Seguimiento de tu pedido #${order.order_number}`)}&body=${encodeURIComponent(message)}` : null,
-    channels: availableChannels(),
-  });
+  res.json(await buildShare(order, req.user.id));
 }));
 
 router.post('/:id/tracking-link', requirePermission('orders.manage'), ah(async (req, res) => {
   const order = await svc.getOrder(req.params.id);
   if (!order) throw notFound();
+  if (FINAL_STATUSES.includes(order.status)) throw conflict('El pedido está cerrado: no se puede generar un enlace de seguimiento.');
   const link = await db.transaction(async (trx) => {
     await revokeLinks(trx, order.id);
     const l = await createLink(trx, order.id, req.user.id);

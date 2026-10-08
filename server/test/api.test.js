@@ -118,9 +118,7 @@ test('flujo completo: crear, asignar, en camino, seguimiento público y entrega'
   assert.equal((await admin.get(detail.proofs[0].signature_url)).status, 200);
   assert.equal((await pedro.get(detail.proofs[0].signature_url)).status, 403);
 
-  const pubDone = (await request(app).get(`/api/track/${token}`)).body;
-  assert.equal(pubDone.status, 'delivered');
-  assert.equal(pubDone.steps.at(-1).state, 'done');
+  assert.equal((await request(app).get(`/api/track/${token}`)).status, 404, 'el seguimiento se cierra al entregar');
 
   const audit = (await admin.get(`/api/audit?order_id=${order.id}`)).body;
   assert.ok(audit.some((a) => a.action === 'order.assign'));
@@ -154,14 +152,48 @@ test('el cliente corrige su ubicación con el enlace y agrega referencia', async
   assert.equal((await request(app).get(`/api/track/${token}`)).status, 404, 'enlace revocado');
 });
 
-test('el cliente con cuenta solo ve sus pedidos', async () => {
-  const maria = await login(app, 'maria@demo.do', 'Cliente123!');
-  const mine = await maria.get('/api/me/orders');
-  assert.equal(mine.status, 200);
-  assert.ok(mine.body.length > 0);
-  const anyOther = await db('orders').whereNot('customer_name', 'María Rodríguez').first();
-  assert.equal((await maria.get(`/api/me/orders/${anyOther.id}/receipt`)).status, 404);
-  assert.equal((await maria.get('/api/orders')).status, 403);
+test('los clientes no tienen cuenta: no hay registro ni acceso con rol cliente', async () => {
+  assert.equal((await request(app).post('/api/auth/register').send({ name: 'X', email: 'x@x.do', phone: '8090000000', password: 'Clave12345' })).status, 404);
+  const res = await admin.post('/api/users').send({ role: 'customer', name: 'Cliente', email: 'cli@demo.do', password: 'Clave12345' });
+  assert.equal(res.status, 400, 'no se pueden crear usuarios con rol cliente');
+});
+
+test('el mensajero comparte el enlace de sus pedidos y el enlace vence al entregar', async () => {
+  const created = await admin.post('/api/orders').send({
+    customer: { name: 'Enlace Mensajero', phone: '809-000-4444' },
+    address: { formatted_address: 'Naco', lat: 18.476, lng: -69.93 },
+    courier_id: juanId,
+  });
+  const order = created.body.order;
+  const share = await juan.get(`/api/courier/orders/${order.id}/share`);
+  assert.equal(share.status, 200, JSON.stringify(share.body));
+  assert.match(share.body.whatsapp_url, /^https:\/\/wa\.me\/18090004444\?text=/);
+  assert.equal(share.body.url, order.tracking_link.url, 'reutiliza el mismo enlace vigente');
+  assert.equal((await pedro.get(`/api/courier/orders/${order.id}/share`)).status, 404, 'otro mensajero no puede compartirlo');
+
+  const token = order.tracking_link.token;
+  assert.equal((await request(app).get(`/api/track/${token}`)).status, 200);
+  await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'en_route' });
+  await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'delivered', proof: { receiver_name: 'Ana' } });
+
+  assert.equal((await request(app).get(`/api/track/${token}`)).status, 404, 'el enlace vence al marcar Entregado');
+  assert.equal((await request(app).post(`/api/track/${token}/location`).send({ lat: 18.47, lng: -69.93 })).status, 404);
+  assert.equal((await juan.get(`/api/courier/orders/${order.id}/share`)).status, 409, 'no se puede volver a compartir');
+  assert.equal((await admin.get(`/api/orders/${order.id}/share`)).status, 409);
+  assert.equal((await admin.post(`/api/orders/${order.id}/tracking-link`)).status, 409, 'no se puede regenerar');
+  const links = await db('tracking_links').where({ order_id: order.id });
+  assert.ok(links.every((l) => l.revoked_at), 'todos los enlaces quedan revocados');
+});
+
+test('el enlace vence al cancelar el pedido', async () => {
+  const created = await admin.post('/api/orders').send({
+    customer: { name: 'Cancelado', phone: '809-000-5555' },
+    address: { formatted_address: 'Gazcue', lat: 18.466, lng: -69.901 },
+  });
+  const token = created.body.order.tracking_link.token;
+  assert.equal((await request(app).get(`/api/track/${token}`)).status, 200);
+  await admin.post(`/api/orders/${created.body.order.id}/status`).send({ status: 'cancelled', note: 'Cliente desistió' });
+  assert.equal((await request(app).get(`/api/track/${token}`)).status, 404);
 });
 
 test('administración de tarifas: crear, cambiar precio, exportar e importar', async () => {

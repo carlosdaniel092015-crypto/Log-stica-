@@ -9,7 +9,6 @@ const ROLES = [
     permissions: ['dashboard.view', 'orders.view', 'orders.manage', 'orders.assign', 'customers.manage', 'tracking.view'],
   },
   { id: 'courier', name: 'Mensajero', permissions: [] },
-  { id: 'customer', name: 'Cliente', permissions: [] },
 ];
 
 exports.ROLES = ROLES;

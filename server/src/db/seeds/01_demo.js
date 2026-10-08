@@ -103,7 +103,7 @@ exports.seed = async function seed(knex) {
 
   // --- Clientes ---
   const customerDefs = [
-    { name: 'María Rodríguez', phone: '809-555-0101', email: 'maria@demo.do', account: true, address: 'Calle Respaldo Los Mina #12, Los Mina', sector: 'Los Mina', lat: 18.4952, lng: -69.8735, ref: 'Frente al colmado La Esquina, portón verde' },
+    { name: 'María Rodríguez', phone: '809-555-0101', email: 'maria@demo.do', address: 'Calle Respaldo Los Mina #12, Los Mina', sector: 'Los Mina', lat: 18.4952, lng: -69.8735, ref: 'Frente al colmado La Esquina, portón verde' },
     { name: 'Carlos Gómez', phone: '829-555-0110', address: 'Plaza Fermín, Km 9 Autopista Duarte', sector: 'Km 9 Autopista Duarte', lat: 18.4935, lng: -69.9690, ref: 'Local 14, segundo nivel' },
     { name: 'Luisa Fernández', phone: '809-555-0111', address: 'Av. Gustavo Mejía Ricart #54, Piantini', sector: 'Piantini', lat: 18.4718, lng: -69.9395, ref: 'Torre Ámbar, apto 5B' },
     { name: 'José Santana', phone: '849-555-0112', address: 'Calle Duarte #8, Los Alcarrizos', sector: 'Los Alcarrizos Centro', lat: 18.5172, lng: -70.0160, ref: 'Al lado de la farmacia' },
@@ -116,13 +116,8 @@ exports.seed = async function seed(knex) {
   ];
   const customers = [];
   for (const c of customerDefs) {
-    let userId = null;
-    if (c.account) {
-      userId = uuid();
-      await knex('users').insert({ id: userId, role_id: 'customer', name: c.name, email: c.email, phone: c.phone, password_hash: await hash('Cliente123!'), active: true, token_version: 0, ...stamp });
-    }
     const id = uuid();
-    await knex('customers').insert({ id, user_id: userId, name: c.name, phone: c.phone, whatsapp: c.phone, email: c.email || null, active: true, ...stamp });
+    await knex('customers').insert({ id, user_id: null, name: c.name, phone: c.phone, whatsapp: c.phone, email: c.email || null, active: true, ...stamp });
     const sectorRow = geoData.sectors.find((s) => s.name === c.sector);
     const municipality = geoData.municipalities.find((m) => m.name === sectorRow.municipality);
     const addressId = uuid();
@@ -213,7 +208,6 @@ exports.seed = async function seed(knex) {
     console.log('  Administrador: admin@demo.do / Admin123!');
     console.log('  Despachador:   despacho@demo.do / Despacho123!');
     console.log('  Mensajeros:    juan@demo.do, pedro@demo.do, ana@demo.do / Mensajero123!');
-    console.log('  Cliente:       maria@demo.do / Cliente123!');
     console.log(`\nSeguimiento de ejemplo (pedido #${enRoute.order_number} en camino):`);
     console.log(`  ${(process.env.PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '')}/seguimiento/${enRoute.token}\n`);
   }

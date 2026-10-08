@@ -34,9 +34,7 @@ const DEFAULTS = {
   push_notifications_enabled: true,
   notify_customer_statuses: ['preparing', 'assigned', 'en_route', 'arriving', 'delivered', 'failed'],
   tracking_link_expiry_hours: 168,
-  tracking_link_expire_after_delivery_hours: 48,
   tracking_share_message: 'Hola {cliente}, tu pedido #{pedido} está en camino 🚚\n\nPuedes darle seguimiento aquí:\n{enlace}',
-  allow_customer_signup: true,
 };
 
 let cache = null;
@@ -74,7 +72,6 @@ function publicSettings(s) {
     company_email: s.company_email,
     currency_symbol: s.currency_symbol,
     business_hours: s.business_hours,
-    allow_customer_signup: s.allow_customer_signup,
     location_update_seconds: s.location_update_seconds,
   };
 }

@@ -138,13 +138,12 @@ export default function Settings() {
       )}
 
       {tab === 'enlaces' && (
-        <Section title="Enlaces públicos de seguimiento" description="Los clientes no necesitan cuenta. Cada enlace usa un token aleatorio de 256 bits y solo da acceso a su pedido.">
+        <Section title="Enlaces públicos de seguimiento" description="Los clientes no tienen cuenta: solo reciben este enlace, que comparte el administrador o el mensajero. Cada enlace usa un token aleatorio de 256 bits y solo da acceso a su pedido.">
           <div className="form-grid">
             <Field label="Vencimiento del enlace (horas)" hint="0 = no vence"><input className="input" type="number" min="0" value={s.tracking_link_expiry_hours} onChange={num('tracking_link_expiry_hours')} /></Field>
-            <Field label="Desactivar tras entrega/cancelación (horas)" hint="0 = mantener activo"><input className="input" type="number" min="0" value={s.tracking_link_expire_after_delivery_hours} onChange={num('tracking_link_expire_after_delivery_hours')} /></Field>
             <Field label="Mensaje para compartir" className="full" hint="Variables: {cliente} {pedido} {empresa} {enlace}"><textarea className="textarea" rows={5} value={s.tracking_share_message} onChange={txt('tracking_share_message')} /></Field>
           </div>
-          <Switch label="Permitir que los clientes creen una cuenta (opcional)" checked={s.allow_customer_signup} onChange={set('allow_customer_signup')} />
+          <div className="alert alert-info small">Por seguridad del mensajero, el enlace vence automáticamente en cuanto el pedido se marca como <strong>Entregado</strong> o <strong>Cancelado</strong>, y no se puede volver a generar mientras siga cerrado.</div>
           <div className="small muted">Google Maps del servidor (Geocoding/Routes): {data.google_server_enabled ? 'configurado' : 'sin clave; se usan estimaciones locales'}.</div>
         </Section>
       )}

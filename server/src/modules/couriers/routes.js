@@ -9,6 +9,7 @@ const { getSettings } = require('../settings/service');
 const svc = require('./service');
 const orders = require('../orders/service');
 const { STATUSES } = require('../orders/statuses');
+const { buildShare } = require('../tracking/share');
 
 /** Rutas para el personal: listado y detalle de mensajeros. */
 const staff = express.Router();
@@ -88,6 +89,13 @@ self.get('/orders/:id', ah(async (req, res) => {
   const order = await orders.getOrder(req.params.id);
   if (!order || order.courier_id !== req.user.courierId) throw notFound('Pedido no encontrado.');
   res.json(orders.courierView(order));
+}));
+
+/** El mensajero comparte el enlace de seguimiento de un pedido asignado a él. */
+self.get('/orders/:id/share', ah(async (req, res) => {
+  const order = await orders.getOrder(req.params.id);
+  if (!order || order.courier_id !== req.user.courierId) throw notFound('Pedido no encontrado.');
+  res.json(await buildShare(order, req.user.id));
 }));
 
 self.post('/orders/:id/status', validate(z.object({

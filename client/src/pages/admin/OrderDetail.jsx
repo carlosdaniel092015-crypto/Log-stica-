@@ -138,7 +138,9 @@ export default function OrderDetail() {
           <p>Creado {fullDateTime(order.created_at)}</p>
         </div>
         <div className="row-wrap">
-          <button className="btn" onClick={() => setSharing(true)}><Icon name="share" /> Enlace de seguimiento</button>
+          {['delivered', 'cancelled'].includes(order.status)
+            ? <span className="small muted">Seguimiento cerrado: el enlace del cliente venció al {order.status === 'delivered' ? 'entregar' : 'cancelar'}.</span>
+            : <button className="btn" onClick={() => setSharing(true)}><Icon name="share" /> Enlace de seguimiento</button>}
           {can(user, 'orders.manage') && !['delivered', 'cancelled'].includes(order.status) && <button className="btn" onClick={() => setEditing(true)}><Icon name="edit" /> Editar</button>}
         </div>
       </div>

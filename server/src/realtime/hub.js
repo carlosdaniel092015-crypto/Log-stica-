@@ -24,4 +24,10 @@ module.exports = {
   toUser: (userId, event, payload) => emit(`user:${userId}`, event, payload),
   toCourier: (courierId, event, payload) => emit(`courier:${courierId}`, event, payload),
   toTracking: (orderId, event, payload) => emit(`track:${orderId}`, event, payload),
+  /** Cierra el seguimiento público: último aviso y salida de la sala. */
+  closeTracking: (orderId, payload) => {
+    if (!io) return;
+    io.to(`track:${orderId}`).emit('tracking:closed', payload);
+    io.in(`track:${orderId}`).socketsLeave(`track:${orderId}`);
+  },
 };

@@ -9,7 +9,7 @@ const { audit } = require('../audit/service');
 const { quote } = require('../zones/service');
 const { resolveAdministrative } = require('../geo/resolver');
 const { getSettings } = require('../settings/service');
-const { createLink, activeLink } = require('../tracking/links');
+const { createLink, activeLink, revokeLinks, FINAL_STATUSES } = require('../tracking/links');
 const { STATUS_LABELS, canTransition, ACTIVE_ROUTE, OUTCOMES } = require('./statuses');
 const events = require('./events');
 
@@ -516,6 +516,8 @@ async function changeStatus(orderId, to, req, extra = {}) {
         created_at: ts,
       });
     }
+    // Entregado o cancelado: el enlace del cliente vence de inmediato (seguridad del mensajero).
+    if (FINAL_STATUSES.includes(to)) await revokeLinks(trx, orderId);
     if (patch.courier_id === null && order.courier_id) {
       await trx('delivery_assignments').where({ order_id: orderId, courier_id: order.courier_id }).whereNull('unassigned_at').update({ unassigned_at: ts, reason: 'Devuelto a despacho' });
     }

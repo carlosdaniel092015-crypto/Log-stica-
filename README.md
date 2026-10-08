@@ -1,6 +1,6 @@
 # Entregas RD — Plataforma de logística y seguimiento de entregas
 
-Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con **Google Maps Platform** y un enlace privado para que el cliente siga su pedido **sin instalar nada ni crear una cuenta**.
+Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con **Google Maps Platform** y un enlace privado para que el cliente siga su pedido. **El cliente no tiene cuenta**: solo recibe el enlace, que comparte el administrador o el mensajero.
 
 Funciona completa desde el navegador (móvil, tablet y computadora). La instalación como **PWA es opcional** (recomendada para mensajeros).
 
@@ -27,7 +27,6 @@ Desarrollo con recarga en caliente: `npm run dev` (API en :3000 y Vite en :5173)
 | Administrador | admin@demo.do | Admin123! |
 | Despachador | despacho@demo.do | Despacho123! |
 | Mensajeros | juan@demo.do · pedro@demo.do · ana@demo.do | Mensajero123! |
-| Cliente con cuenta | maria@demo.do | Cliente123! |
 
 Al cargar los datos de ejemplo (`npm run seed`) se imprime un **enlace de seguimiento** de un pedido que está en camino. Ábrelo en otro navegador o en modo incógnito para ver la experiencia del cliente.
 
@@ -40,7 +39,7 @@ npm test                                                     # SQLite en memoria
 TEST_DATABASE_URL=postgres://usuario@host/db_pruebas npm test   # PostgreSQL (borra esa base)
 ```
 
-Cubren autenticación, permisos por rol, detección de zonas y precios, el flujo completo de un pedido (crear → asignar → "Voy hacia este cliente" → llegando → entregado con evidencia), el seguimiento por token (incluido un token alterado o revocado), la importación y exportación de tarifas, la protección CSRF y los eventos en tiempo real.
+Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detección de zonas y precios, el flujo completo de un pedido (crear → asignar → "Voy hacia este cliente" → llegando → entregado con evidencia), el seguimiento por token (incluido un token alterado o revocado, y el vencimiento automático al entregar o cancelar), el compartir del mensajero, la importación y exportación de tarifas, la protección CSRF y los eventos en tiempo real.
 
 ---
 
@@ -49,7 +48,7 @@ Cubren autenticación, permisos por rol, detección de zonas y precios, el flujo
 **Administrador / despachador** (`/admin`)
 - Dashboard: pedidos de hoy, pendientes, asignados, en ruta, entregados, no entregados, mensajeros y clientes activos e ingresos por delivery. Gráficos de entregas por día, ingresos, entregas por mensajero y por zona, y rendimiento por mensajero.
 - Pedidos: creación con búsqueda de dirección (Google Places), **detección automática de zona y precio**, modificación manual del costo (con permiso), asignación y reasignación de mensajeros, cambio de estado, historial con fecha, hora, usuario y coordenadas, pruebas de entrega (foto, firma, quien recibió) y auditoría.
-- Compartir el enlace de seguimiento por **WhatsApp, SMS, correo o copiándolo**. El enlace se puede regenerar o revocar.
+- Compartir el enlace de seguimiento por **WhatsApp, SMS, correo o copiándolo**. El enlace se puede regenerar o revocar mientras el pedido esté abierto.
 - **Seguimiento en vivo**: mapa con los mensajeros en jornada, el pedido y el cliente al que se dirige cada uno, última actualización, pendientes y entregados del día.
 - Mensajeros (orden de ruta definido por el administrador), clientes (lista y mapa, direcciones guardadas, historial).
 - **Tarifas de entrega**: tabla con búsqueda, filtros, edición rápida de precio, activar/desactivar, historial de precios e importación/exportación CSV o JSON.
@@ -61,14 +60,15 @@ Cubren autenticación, permisos por rol, detección de zonas y precios, el flujo
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
 - **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA, LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
 - Evidencia de entrega: nombre de quien recibe, notas, foto (comprimida en el dispositivo), firma, coordenadas (si hay permiso) y cobro en efectivo.
+- **COMPARTIR SEGUIMIENTO CON EL CLIENTE** desde cada entrega (WhatsApp, SMS, correo o copiar); el mensajero solo comparte, no puede regenerar ni revocar.
 - Modo sin conexión: las acciones se guardan en el dispositivo y se envían al volver internet.
 
-**Cliente sin cuenta** (`/seguimiento/<token>`)
+**Cliente** (`/seguimiento/<token>`, sin cuenta ni inicio de sesión)
 - Número y estado del pedido, progreso (✓ Recibido → Preparando → Mensajero asignado → En camino → Llegando → Entregado), mensajero, mapa con su ubicación (si la empresa lo permite), tiempo estimado de llegada y mensajes como "Tu mensajero está cerca".
 - Confirmar la ubicación, compartirla (**USAR MI UBICACIÓN ACTUAL**, con aviso previo), corregir el pin y agregar referencias.
 - Contactar con la empresa o con el mensajero (si está permitido) y activar notificaciones opcionales.
 
-**Cliente con cuenta opcional** (`/cliente`): pedidos activos y anteriores, comprobantes, direcciones guardadas y datos personales.
+**Cierre automático del enlace:** en cuanto el pedido se marca como **Entregado** o **Cancelado** (por el mensajero o el administrador), todos sus enlaces se revocan, la página abierta del cliente muestra el cierre y deja de recibir datos, y el enlace responde "no disponible". No se puede volver a generar mientras el pedido siga cerrado. Así el cliente no puede seguir viendo al mensajero después de la entrega.
 
 ---
 
@@ -78,13 +78,13 @@ Cubren autenticación, permisos por rol, detección de zonas y precios, el flujo
 client/   React + Vite (SPA/PWA): pantallas, Google Maps JS API, Socket.IO, service worker
 server/   Node.js + Express 5 + Socket.IO + Knex
   src/modules/
-    auth/          inicio de sesión, registro opcional, contraseñas (bcrypt), sesiones JWT en cookie httpOnly
+    auth/          inicio de sesión del personal y mensajeros, contraseñas (bcrypt), sesiones JWT en cookie httpOnly
     users/         usuarios, roles y permisos
     geo/           provincias, municipios, sectores y resolución de dirección → división territorial
     zones/         zonas, tarifas (con historial) y motor de cotización
     orders/        pedidos, máquina de estados, asignaciones, evidencias y eventos
     couriers/      jornada, ubicación, ETA y estado del mensajero
-    tracking/      enlaces privados (token de 256 bits, guardado hasheado y cifrado) y vista pública
+    tracking/      enlaces privados (token de 256 bits, guardado hasheado y cifrado), compartir y vista pública
     notifications/ notificaciones internas, Web Push y canales futuros (WhatsApp, SMS, correo)
     maps/          Geocoding API y Routes API desde el servidor
     dashboard/  audit/  settings/  customers/
@@ -140,13 +140,12 @@ También necesitas `GOOGLE_MAPS_MAP_ID`, un Map ID de tipo JavaScript para los m
 - Protección **CSRF**: las peticiones que modifican datos deben enviarse como JSON.
 - Autorización en el servidor:
   - El mensajero solo ve y modifica sus pedidos asignados.
-  - El cliente con cuenta solo ve sus propios pedidos.
+  - Los clientes no tienen cuenta: solo el enlace de su pedido, que vence al entregarlo o cancelarlo.
   - El personal accede según los permisos de su rol.
 - **Enlaces de seguimiento**:
   - Token aleatorio de 256 bits, guardado como hash SHA-256 y cifrado con AES-256-GCM (para poder volver a compartirlo).
-  - Tienen vencimiento configurable, se pueden revocar y responden con el mismo error si el enlace no existe o venció.
+  - Tienen vencimiento configurable, se revocan automáticamente al entregar o cancelar el pedido, se pueden revocar a mano y responden con el mismo error si el enlace no existe o venció.
   - Solo dan acceso al pedido de ese token.
-  - El registro de una cuenta **no** vincula pedidos previos por número de teléfono; el personal lo hace manualmente después de verificar la identidad del cliente.
 - **Rate limiting** global, en el inicio de sesión y en las rutas públicas, y validación de todas las entradas con zod.
 - **Auditoría** de los cambios importantes: usuario, acción, fecha y hora, pedido, valor anterior, valor nuevo, IP y navegador.
 - Las evidencias (fotos y firmas) se sirven solo a personal autorizado o al mensajero que las registró.

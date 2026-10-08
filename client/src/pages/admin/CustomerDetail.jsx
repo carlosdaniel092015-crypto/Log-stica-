@@ -38,8 +38,6 @@ export default function CustomerDetail() {
   const { data, loading, error, reload, setData } = useAsync(() => api.get(`/api/customers/${id}`), [id]);
   const [editing, setEditing] = useState(false);
   const [addr, setAddr] = useState(null);
-  const [linking, setLinking] = useState(false);
-  const [email, setEmail] = useState('');
   const [busy, run] = useAction();
   if (loading && !data) return <Spinner center />;
   if (error) return <ErrorAlert error={error} />;
@@ -51,7 +49,7 @@ export default function CustomerDetail() {
         <div>
           <Link to="/admin/clientes" className="small"><Icon name="back" size={14} /> Clientes</Link>
           <h1 style={{ marginTop: 6 }}>{c.name}</h1>
-          <p>{c.has_account ? 'Cliente con cuenta' : 'Cliente sin cuenta'} · registrado {dateTime(c.created_at)}</p>
+          <p>Registrado {dateTime(c.created_at)}</p>
         </div>
         <div className="row-wrap">
           <a className="btn" href={`tel:${c.phone}`}><Icon name="phone" /> Llamar</a>
@@ -69,17 +67,6 @@ export default function CustomerDetail() {
             <dt>Correo</dt><dd>{c.email || '—'}</dd>
             <dt>Notas</dt><dd>{c.notes || '—'}</dd>
           </dl>
-          {!c.has_account && (
-            linking ? (
-              <div className="stack-sm">
-                <div className="small muted">Mueve los pedidos y direcciones de este cliente a la cuenta registrada (verifica antes la identidad del cliente).</div>
-                <div className="input-group">
-                  <input className="input" type="email" placeholder="Correo de la cuenta" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  <button className="btn btn-primary" disabled={busy || !email} onClick={() => run(async () => { const t = await api.post(`/api/customers/${c.id}/link-account`, { email }); window.location.assign(`/admin/clientes/${t.id}`); }, 'Historial vinculado a la cuenta.')}>Vincular</button>
-                </div>
-              </div>
-            ) : <button className="btn btn-sm" onClick={() => setLinking(true)}><Icon name="link" /> Vincular a una cuenta de cliente</button>
-          )}
         </div>
         <div className="card card-body stack">
           <div className="row" style={{ justifyContent: 'space-between' }}><h3>Direcciones</h3><button className="btn btn-sm" onClick={() => setAddr({})}><Icon name="plus" /> Agregar</button></div>
