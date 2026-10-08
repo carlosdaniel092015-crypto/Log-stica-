@@ -74,6 +74,8 @@ export default function Customers() {
             <button className={`chip ${view === 'table' ? 'active' : ''}`} onClick={() => setView('table')}>Lista</button>
             <button className={`chip ${view === 'map' ? 'active' : ''}`} onClick={() => setView('map')}>Mapa</button>
           </div>
+          <a className="btn" href="/api/customers/export" download title="Todos los clientes con su dirección principal y resumen de compras"><Icon name="download" /> Descargar Excel (CSV)</a>
+          <a className="btn btn-ghost" href="/api/customers/export?format=json" download>JSON</a>
           <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" /> Nuevo cliente</button>
         </div>
       </div>

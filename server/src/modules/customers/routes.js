@@ -9,6 +9,7 @@ const { requirePermission } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
 const { resolveAdministrative } = require('../geo/resolver');
 const { listOrders } = require('../orders/service');
+const { toCsv } = require('../../utils/csv');
 
 const router = express.Router();
 
@@ -123,6 +124,65 @@ router.get('/', requirePermission('customers.manage'), ah(async (req, res) => {
     for (const c of customers) c.addresses = addrs.filter((a) => a.customer_id === c.id).map(mapAddress);
   }
   res.json(customers);
+}));
+
+/** Descargar la base de clientes (CSV para Excel o JSON), con su dirección principal y resumen de compras. */
+router.get('/export', requirePermission('customers.manage'), ah(async (req, res) => {
+  const customers = await db('customers').orderBy('name');
+  const stats = await db('orders').whereNotNull('customer_id').groupBy('customer_id')
+    .select('customer_id')
+    .count('id as orders_count')
+    .max('created_at as last_order_at')
+    .select(db.raw("sum(case when status = 'delivered' then total else 0 end) as total_spent"));
+  const byId = Object.fromEntries(stats.map((r) => [r.customer_id, r]));
+  const addresses = await db('customer_addresses as a')
+    .leftJoin('sectors as s', 's.id', 'a.sector_id')
+    .leftJoin('municipalities as m', 'm.id', 'a.municipality_id')
+    .leftJoin('provinces as p', 'p.id', 'a.province_id')
+    .orderBy('a.is_default', 'desc')
+    .orderBy('a.created_at')
+    .select('a.customer_id', 'a.formatted_address', 'a.reference', 'a.lat', 'a.lng', 's.name as sector', 'm.name as municipio', 'p.name as provincia');
+  const firstAddress = {};
+  const addressCount = {};
+  for (const a of addresses) {
+    firstAddress[a.customer_id] ||= a;
+    addressCount[a.customer_id] = (addressCount[a.customer_id] || 0) + 1;
+  }
+  const date = (v) => (v ? new Date(v).toISOString().slice(0, 10) : '');
+  const rows = customers.map((c) => {
+    const a = firstAddress[c.id] || {};
+    const st = byId[c.id] || {};
+    return {
+      nombre: c.name,
+      telefono: c.phone || '',
+      whatsapp: c.whatsapp || '',
+      correo: c.email || '',
+      direccion: a.formatted_address || '',
+      referencia: a.reference || '',
+      sector: a.sector || '',
+      municipio: a.municipio || '',
+      provincia: a.provincia || '',
+      latitud: a.lat ?? '',
+      longitud: a.lng ?? '',
+      direcciones_guardadas: addressCount[c.id] || 0,
+      pedidos: Number(st.orders_count || 0),
+      total_comprado: Number(st.total_spent || 0),
+      ultimo_pedido: date(st.last_order_at),
+      estado: bool(c.active) ? 'Activo' : 'Inactivo',
+      notas: c.notes || '',
+      registrado: date(c.created_at),
+    };
+  });
+  await audit(req, { action: 'customer.export', entity: 'customer', newValue: { format: req.query.format === 'json' ? 'json' : 'csv', count: rows.length } });
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.query.format === 'json') {
+    res.setHeader('Content-Disposition', `attachment; filename="clientes-${stamp}.json"`);
+    return res.json(rows);
+  }
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="clientes-${stamp}.csv"`);
+  res.send(toCsv(Object.keys(rows[0] || { nombre: '' }), rows));
 }));
 
 router.get('/:id', requirePermission('customers.manage'), ah(async (req, res) => {

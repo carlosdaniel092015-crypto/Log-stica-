@@ -267,3 +267,19 @@ test('pegar la ubicación de WhatsApp devuelve las coordenadas', async () => {
   assert.equal(bad.status, 400);
   assert.equal((await request(app).post('/api/maps/parse-location').send({ text: '18.5,-70.0' })).status, 401);
 });
+
+test('descargar la base de clientes (CSV para Excel y JSON)', async () => {
+  const csv = await admin.get('/api/customers/export');
+  assert.equal(csv.status, 200);
+  assert.match(csv.headers['content-type'], /text\/csv/);
+  assert.match(csv.headers['content-disposition'], /clientes-\d{4}-\d{2}-\d{2}\.csv/);
+  const lines = csv.text.replace(/^﻿/, '').split('\r\n');
+  assert.equal(lines[0].split(',')[0], 'nombre');
+  assert.ok(lines[0].includes('total_comprado') && lines[0].includes('sector'));
+  const count = (await db('customers').count('* as n'))[0].n;
+  assert.equal(lines.length - 1, Number(count), 'una fila por cliente');
+  const json = await admin.get('/api/customers/export?format=json');
+  assert.ok(json.body.some((c) => c.nombre === 'María Rodríguez' && c.sector === 'Los Mina' && c.pedidos > 0));
+  assert.equal((await juan.get('/api/customers/export')).status, 403, 'un mensajero no puede descargarla');
+  assert.ok(await db('audit_logs').where({ action: 'customer.export' }).first(), 'queda en la auditoría');
+});
