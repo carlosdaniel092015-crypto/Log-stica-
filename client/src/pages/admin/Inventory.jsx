@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { fullDateTime, money, relative } from '../../lib/format';
 import { Empty, Field, Modal, Spinner, useAction, useAsync, useSocketEvent } from '../../components/ui';
@@ -31,6 +31,24 @@ export function ItemsEditor({ products, items, onChange, stock }) {
   );
 }
 
+/** − [cantidad] + : ajusta el almacén. Escribir un número aplica la diferencia. */
+function StockStepper({ value, low, disabled, onDelta }) {
+  const [draft, setDraft] = useState(null);
+  const commit = () => {
+    if (draft === null) return;
+    const n = Math.trunc(Number(draft));
+    setDraft(null);
+    if (Number.isFinite(n) && n >= 0 && n !== value) onDelta(n - value);
+  };
+  return (
+    <span className="stepper">
+      <button type="button" className="btn btn-sm" disabled={disabled || value <= 0} onClick={() => onDelta(-1)} aria-label="Restar uno">−</button>
+      <input className="input" style={{ color: low ? 'var(--warning)' : undefined }} value={draft ?? value} onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} aria-label="Existencia en almacén" inputMode="numeric" />
+      <button type="button" className="btn btn-sm" disabled={disabled} onClick={() => onDelta(1)} aria-label="Sumar uno">+</button>
+    </span>
+  );
+}
+
 const cleanItems = (items) => items.filter((i) => i.product_id && Number(i.quantity) > 0).map((i) => ({ product_id: i.product_id, quantity: Math.trunc(Number(i.quantity)) }));
 
 function StockModal({ mode, courier, products, onClose, onDone }) {
@@ -55,13 +73,13 @@ function StockModal({ mode, courier, products, onClose, onDone }) {
 }
 
 function ProductModal({ product, onClose, onDone }) {
-  const [form, setForm] = useState({ sku: product?.sku || '', name: product?.name || '', unit: product?.unit || 'unidad', price: product?.price ?? '', description: product?.description || '', warehouse_stock: 0, active: product?.active ?? true });
+  const [form, setForm] = useState({ sku: product?.sku || '', name: product?.name || '', unit: product?.unit || 'unidad', price: product?.price ?? '', description: product?.description || '', warehouse_stock: 0, min_stock: product?.min_stock ?? 0, active: product?.active ?? true });
   const [busy, run] = useAction();
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const submit = (e) => {
     e.preventDefault();
     run(async () => {
-      const body = { sku: form.sku, name: form.name, unit: form.unit, price: Number(form.price), description: form.description || null, active: form.active };
+      const body = { sku: form.sku, name: form.name, unit: form.unit, price: Number(form.price), min_stock: Math.max(0, Math.trunc(Number(form.min_stock) || 0)), description: form.description || null, active: form.active };
       if (product) await api.put(`/api/inventory/products/${product.id}`, body);
       else await api.post('/api/inventory/products', { ...body, warehouse_stock: Number(form.warehouse_stock) || 0 });
       onDone();
@@ -75,6 +93,7 @@ function ProductModal({ product, onClose, onDone }) {
         <Field label="Nombre" className="full"><input className="input" value={form.name} onChange={set('name')} required /></Field>
         <Field label="Precio (RD$)"><input className="input" type="number" min="0" step="0.01" value={form.price} onChange={set('price')} required /></Field>
         {!product && <Field label="Existencia inicial en almacén"><input className="input" type="number" min="0" value={form.warehouse_stock} onChange={set('warehouse_stock')} /></Field>}
+        <Field label="Existencia mínima" hint="Al llegar a este número se avisa que se está acabando"><input className="input" type="number" min="0" value={form.min_stock} onChange={set('min_stock')} /></Field>
         <Field label="Descripción" className="full"><input className="input" value={form.description} onChange={set('description')} /></Field>
         <label className="check full"><input type="checkbox" checked={form.active} onChange={set('active')} /> Producto activo</label>
       </form>
@@ -154,7 +173,8 @@ export function OutcomeFeed({ limit = 50 }) {
 
 export default function Inventory() {
   const { currency } = useApp();
-  const [tab, setTab] = useState('requests');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(params.get('tab') || 'products');
   const overview = useAsync(() => api.get('/api/inventory/overview'), []);
   const requests = useAsync(() => api.get('/api/inventory/requests'), []);
   const movements = useAsync(() => (tab === 'movements' ? api.get('/api/inventory/movements') : Promise.resolve(null)), [tab]);
@@ -173,18 +193,33 @@ export default function Inventory() {
   if (!overview.data) return <Spinner center />;
   const { products, couriers } = overview.data;
   const pending = (requests.data || []).filter((r) => r.status === 'pending');
+  const lowStock = products.filter((p) => p.low_stock);
+  const adjust = (p, delta) => {
+    if (!delta) return;
+    run(async () => { await api.post(`/api/inventory/products/${p.id}/adjust`, { delta }); refresh(); });
+  };
   const reviewed = (requests.data || []).filter((r) => r.status !== 'pending');
 
   return (
     <div className="stack">
-      <div className="page-header">
-        <div><h1>Inventario</h1><p>Productos, inventario asignado a cada mensajero y aprobación de entregas y solicitudes. Se actualiza en tiempo real.</p></div>
-        <button className="btn btn-primary" onClick={() => setProductModal({})}><Icon name="plus" /> Nuevo producto</button>
+      <div className="page-header" style={{ marginBottom: 0 }}>
+        <div><h1>Inventario</h1><p>Existencia en almacén, inventario que lleva cada mensajero y solicitudes por aprobar</p></div>
       </div>
+      {lowStock.length > 0 && (
+        <div className="banner warning">
+          <span className="banner-icon"><Icon name="alert" size={18} /></span>
+          <div className="spacer">
+            <div className="bold">{lowStock.length} producto(s) se están acabando</div>
+            <div className="small">{lowStock.map((p) => `${p.name} (${p.warehouse_stock})`).join(' · ')}</div>
+          </div>
+        </div>
+      )}
 
       <div className="tabs" role="tablist">
-        {[['requests', `Solicitudes${pending.length ? ` (${pending.length})` : ''}`], ['live', 'Entregas en vivo'], ['couriers', 'Inventario por mensajero'], ['products', 'Productos y almacén'], ['movements', 'Movimientos']].map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>
+        {[['products', 'Productos'], ['couriers', 'Inventario por mensajero'], ['requests', 'Solicitudes'], ['live', 'Entregas en vivo'], ['movements', 'Movimientos']].map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={tab === k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>
+            {l}{k === 'requests' && pending.length > 0 && <span className="tab-count">{pending.length}</span>}
+          </button>
         ))}
       </div>
 
@@ -239,29 +274,42 @@ export default function Inventory() {
       )}
 
       {tab === 'products' && (
-        <div className="card">
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>SKU</th><th>Producto</th><th>Unidad</th><th className="num">Precio</th><th className="num">Almacén</th><th className="num">Con mensajeros</th><th>Estado</th><th /></tr></thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} style={{ opacity: p.active ? 1 : 0.55 }}>
-                    <td className="mono small">{p.sku}</td>
-                    <td className="bold">{p.name}</td>
-                    <td className="small">{p.unit}</td>
-                    <td className="num">{money(p.price, currency)}</td>
-                    <td className="num bold">{p.warehouse_stock}</td>
-                    <td className="num">{couriers.reduce((s, c) => s + (c.stock[p.id] || 0), 0)}</td>
-                    <td><span className="badge" style={{ '--c': p.active ? 'var(--success)' : 'var(--muted)' }}>{p.active ? 'Activo' : 'Inactivo'}</span></td>
-                    <td className="nowrap">
-                      <button className="btn btn-sm" disabled={busy} onClick={() => { const v = window.prompt(`Entrada (+) o salida (−) de almacén para "${p.name}":`, '10'); const d = Math.trunc(Number(v)); if (v && d) run(async () => { await api.post(`/api/inventory/products/${p.id}/adjust`, { delta: d }); refresh(); }, 'Almacén actualizado.'); }}>± Almacén</button>{' '}
-                      <button className="btn btn-sm btn-ghost" onClick={() => setProductModal(p)} aria-label="Editar"><Icon name="edit" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {products.length === 0 && <Empty icon="box" title="Crea tu primer producto" />}
+        <div className="stack">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <span className="small muted">{products.length} productos · recibes un aviso cuando el almacén llega al mínimo</span>
+            <button className="btn btn-primary" onClick={() => setProductModal({})}><Icon name="plus" /> Nuevo producto</button>
+          </div>
+          <div className="card">
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>SKU</th><th>Producto</th><th className="num">Precio</th><th style={{ textAlign: 'center' }}>En almacén</th><th className="num">Con mensajeros</th><th className="num">Total</th><th className="num">Mínimo</th><th /></tr></thead>
+                <tbody>
+                  {products.map((p) => {
+                    const withCouriers = couriers.reduce((sum, c) => sum + (c.stock[p.id] || 0), 0);
+                    return (
+                      <tr key={p.id} className={p.low_stock ? 'row-warn' : ''} style={{ opacity: p.active ? 1 : 0.55 }}>
+                        <td className="mono small muted">{p.sku}</td>
+                        <td className="bold">{p.name} {p.low_stock && <span className="badge" style={{ '--c': 'var(--warning)' }}>Bajo</span>}{!p.active && <span className="badge no-dot" style={{ '--c': 'var(--muted)' }}>Inactivo</span>}</td>
+                        <td className="num">{money(p.price, currency)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <StockStepper value={p.warehouse_stock} low={p.low_stock} disabled={busy} onDelta={(d) => adjust(p, d)} />
+                        </td>
+                        <td className="num">{withCouriers}</td>
+                        <td className="num bold">{p.warehouse_stock + withCouriers}</td>
+                        <td className="num muted">{p.min_stock || '—'}</td>
+                        <td className="nowrap">
+                          <span className="icon-btn-group">
+                            <button className="btn btn-sm btn-icon" onClick={() => setProductModal(p)} aria-label="Editar"><Icon name="edit" /></button>
+                            <button className="btn btn-sm btn-icon" style={{ color: 'var(--danger)' }} aria-label="Eliminar" onClick={() => window.confirm(`¿Eliminar "${p.name}"?`) && run(async () => { await api.del(`/api/inventory/products/${p.id}`); refresh(); }, 'Producto eliminado.')}><Icon name="trash" /></button>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {products.length === 0 && <Empty icon="box" title="Crea tu primer producto" />}
+            </div>
           </div>
         </div>
       )}

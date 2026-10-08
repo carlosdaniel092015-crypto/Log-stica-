@@ -6,7 +6,7 @@ const { z } = require('zod');
 const { db, bool, now } = require('../../db');
 const { ah, unauthorized, badRequest, forbidden } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
-const { signSession, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
+const { signSession, signSocketToken, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
 const { rateLimitStore } = require('../../infra/redis');
 
@@ -28,7 +28,7 @@ const password = z.string().min(8, 'debe tener al menos 8 caracteres').max(100);
 router.post(
   '/login',
   loginLimiter,
-  validate(z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(100) })),
+  validate(z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(100), remember: z.boolean().optional() })),
   ah(async (req, res) => {
     const user = await db('users').where({ email: req.body.email }).first();
     // Comparación siempre ejecutada para no revelar si el correo existe (timing).
@@ -41,10 +41,10 @@ router.post(
     // Los clientes no tienen cuenta: siguen su pedido solo con el enlace privado.
     if (!['admin', 'dispatcher', 'courier'].includes(user.role_id)) throw forbidden('Esta cuenta no tiene acceso a la plataforma.');
     await db('users').where({ id: user.id }).update({ last_login_at: now() });
-    setSessionCookie(res, signSession(user));
+    setSessionCookie(res, signSession(user), { remember: req.body.remember !== false });
     req.user = { id: user.id, name: user.name };
     await audit(req, { action: 'auth.login', entity: 'user', entityId: user.id });
-    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role_id } });
+    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role_id, must_change_password: bool(user.must_change_password) } });
   })
 );
 
@@ -57,6 +57,12 @@ router.get('/me', (req, res) => {
   res.json({ user: req.user || null });
 });
 
+// Token corto para el socket cuando el frontend vive en otro dominio (Vercel).
+router.get('/socket-token', requireAuth, ah(async (req, res) => {
+  const user = await db('users').where({ id: req.user.id }).first('id', 'token_version');
+  res.set('Cache-Control', 'no-store').json({ token: signSocketToken(user) });
+}));
+
 router.put(
   '/me/password',
   requireAuth,
@@ -64,7 +70,8 @@ router.put(
   ah(async (req, res) => {
     const user = await db('users').where({ id: req.user.id }).first();
     if (!(await bcrypt.compare(req.body.current_password, user.password_hash))) throw badRequest('La contraseña actual no es correcta.');
-    const updated = { password_hash: await bcrypt.hash(req.body.new_password, 12), token_version: user.token_version + 1, updated_at: now() };
+    if (req.body.new_password === req.body.current_password) throw badRequest('La nueva contraseña debe ser diferente a la actual.');
+    const updated = { password_hash: await bcrypt.hash(req.body.new_password, 12), must_change_password: false, token_version: user.token_version + 1, updated_at: now() };
     await db('users').where({ id: user.id }).update(updated);
     setSessionCookie(res, signSession({ ...user, ...updated }));
     await audit(req, { action: 'auth.password_change', entity: 'user', entityId: user.id });

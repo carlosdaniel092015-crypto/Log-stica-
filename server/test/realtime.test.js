@@ -80,3 +80,20 @@ test('el cliente recibe el cambio "En camino" en tiempo real con su token', asyn
   assert.equal(rejoin.ok, false, 'no puede volver a unirse');
   customer.close();
 });
+
+test('frontend en otro dominio (Vercel): el token corto abre el socket pero no sirve para la API', async () => {
+  const { request } = require('./helpers');
+  assert.equal((await request(app).get('/api/auth/socket-token')).status, 401);
+  const { token } = (await admin.get('/api/auth/socket-token')).body;
+  assert.ok(token);
+
+  const staff = ioClient(base, { transports: ['websocket'], auth: { token } });
+  await new Promise((r) => staff.on('connect', r));
+  const updated = once(staff, 'order:updated', (o) => o?.customer_name === 'Socket Vercel');
+  await admin.post('/api/orders').send({ customer: { name: 'Socket Vercel', phone: '809-000-8888' }, address: { formatted_address: 'Naco', lat: 18.48, lng: -69.93 } });
+  await updated;
+  staff.close();
+
+  const api = await request(app).get('/api/dashboard').set('Authorization', `Bearer ${token}`);
+  assert.equal(api.status, 401, 'el token del socket no autentica la API');
+});

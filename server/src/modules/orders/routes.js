@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const { sendInvoice } = require('./invoice');
 const { z } = require('zod');
 const { db } = require('../../db');
 const { ah, notFound, conflict } = require('../../utils/http');
@@ -80,6 +81,12 @@ router.post('/', requirePermission('orders.manage'), validate(createSchema), ah(
 
 router.get('/:id', requirePermission('orders.view'), ah(async (req, res) => {
   res.json(await svc.getOrderDetail(req.params.id));
+}));
+
+router.get('/:id/invoice', requirePermission('orders.view'), ah(async (req, res) => {
+  const order = await svc.getOrder(req.params.id);
+  if (!order) throw notFound();
+  await sendInvoice(req, res, order);
 }));
 
 router.put('/:id', requirePermission('orders.manage'), validate(updateSchema), ah(async (req, res) => {

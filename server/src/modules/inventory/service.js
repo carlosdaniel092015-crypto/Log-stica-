@@ -15,13 +15,42 @@ const MOVEMENT_LABELS = {
   warehouse_adjust: 'Ajuste de almacén',
 };
 
-const mapProduct = (p) => ({ ...p, price: Number(p.price), warehouse_stock: Number(p.warehouse_stock), active: bool(p.active) });
+const mapProduct = (p) => ({
+  ...p,
+  price: Number(p.price),
+  warehouse_stock: Number(p.warehouse_stock),
+  min_stock: Number(p.min_stock || 0),
+  low_stock: bool(p.active) && Number(p.min_stock || 0) > 0 && Number(p.warehouse_stock) <= Number(p.min_stock),
+  active: bool(p.active),
+});
+
+/** Productos activos cuya existencia en almacén llegó al mínimo. */
+async function lowStockProducts() {
+  return (await db('products').where({ active: true }).where('min_stock', '>', 0).whereRaw('warehouse_stock <= min_stock').orderBy('name')).map(mapProduct);
+}
+
+// Productos que cruzaron el mínimo dentro de una transacción; se avisa después de confirmarla.
+const lowStockQueue = new Set();
 
 /** Avisa en tiempo real al personal y al mensajero afectado. */
 function broadcast(courierId, reason) {
+  if (lowStockQueue.size) {
+    const ids = [...lowStockQueue];
+    lowStockQueue.clear();
+    notifyLowStock(ids).catch(() => {});
+  }
   const payload = { courier_id: courierId || null, reason, at: now() };
   realtime.toStaff('inventory:updated', payload);
   if (courierId) realtime.toCourier(courierId, 'inventory:updated', payload);
+}
+
+async function notifyLowStock(ids) {
+  const { notify } = require('../notifications/service');
+  const rows = await db('products').whereIn('id', ids);
+  // Se vuelve a comprobar (por si la operación se revirtió).
+  for (const p of rows.filter((x) => Number(x.warehouse_stock) <= Number(x.min_stock))) {
+    await notify({ audience: 'admin', title: 'Producto por acabarse', body: `${p.name}: quedan ${p.warehouse_stock} en almacén (mínimo ${p.min_stock}).`, url: '/admin/inventario' });
+  }
 }
 
 async function movement(trx, m) {
@@ -66,7 +95,12 @@ async function changeCourierStock(trx, courierId, productId, delta) {
 async function changeWarehouseStock(trx, productId, delta) {
   const q = trx('products').where({ id: productId });
   if (delta < 0) q.where('warehouse_stock', '>=', -delta);
+  const before = delta < 0 ? await trx('products').where({ id: productId }).first('warehouse_stock', 'min_stock') : null;
   const updated = await q.update({ warehouse_stock: trx.raw('warehouse_stock + ?', [delta]), updated_at: now() });
+  if (updated && before && Number(before.min_stock) > 0) {
+    const after = Number(before.warehouse_stock) + delta;
+    if (after <= Number(before.min_stock) && Number(before.warehouse_stock) > Number(before.min_stock)) lowStockQueue.add(productId);
+  }
   if (!updated) {
     const p = await trx('products').where({ id: productId }).first();
     if (!p) throw notFound('Producto no encontrado.');
@@ -296,13 +330,14 @@ async function setOrderItems(trx, orderId, items) {
 
 async function itemsForOrders(orderIds) {
   if (!orderIds.length) return {};
-  const rows = await db('order_items').whereIn('order_id', orderIds).orderBy('created_at');
+  const rows = await db('order_items as i').leftJoin('products as p', 'p.id', 'i.product_id').whereIn('i.order_id', orderIds).orderBy('i.created_at').select('i.*', 'p.sku');
   const out = {};
-  for (const r of rows) (out[r.order_id] ||= []).push({ product_id: r.product_id, name: r.product_name, quantity: Number(r.quantity), unit_price: Number(r.unit_price) });
+  for (const r of rows) (out[r.order_id] ||= []).push({ product_id: r.product_id, sku: r.sku, name: r.product_name, quantity: Number(r.quantity), unit_price: Number(r.unit_price) });
   return out;
 }
 
 module.exports = {
+  lowStockProducts,
   REQUEST_STATUS_LABELS,
   REQUEST_KIND_LABELS,
   MOVEMENT_LABELS,

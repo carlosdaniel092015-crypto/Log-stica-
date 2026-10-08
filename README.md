@@ -1,6 +1,6 @@
 # Entregas RD — Plataforma de logística y seguimiento de entregas
 
-Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con **Google Maps Platform** y un enlace privado para que el cliente siga su pedido. **El cliente no tiene cuenta**: solo recibe el enlace, que comparte el administrador o el mensajero.
+Aplicación web para gestionar entregas en **República Dominicana**: pedidos, mensajeros, zonas y tarifas en **RD$**, seguimiento en tiempo real con mapas (**OpenFreeMap** gratis por defecto, o **Google Maps** si configuras una clave) y un enlace privado para que el cliente siga su pedido. **El cliente no tiene cuenta**: solo recibe el enlace, que comparte el administrador o el mensajero.
 
 Funciona completa desde el navegador (móvil, tablet y computadora). La instalación como **PWA es opcional** (recomendada para mensajeros).
 
@@ -62,16 +62,21 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 - El mensajero puede **solicitar inventario** indicando cantidades; el administrador las aprueba ajustándolas si hace falta.
 - **En vivo y sin recargar**: los pedidos entregados se resaltan en **verde** y los no entregados en **rojo** (lista de pedidos, avisos emergentes y feed "Entregas en vivo"). Se guarda el historial de movimientos.
 
+**Empresa, accesos y facturas**
+- **Nombre, logo, RNC y dirección** de la empresa en *Configuración → Empresa*. El logo se sube desde el panel (PNG, JPG, SVG o WebP; se reduce a PNG en el navegador) y aparece en el panel, el inicio de sesión, el seguimiento y las facturas. El RNC es opcional: si está vacío no aparece.
+- **Mensajeros con clave temporal:** la empresa los crea desde *Mensajeros → Nuevo mensajero* o desde *Usuarios*, con una clave generada. Se puede enviar al mensajero por WhatsApp o copiar. Al iniciar sesión por primera vez, el mensajero debe elegir su propia clave. Hasta entonces, el servidor bloquea el resto de la API y el tiempo real. Restablecer la clave desde *Usuarios* vuelve a crear una clave temporal.
+- **Factura en PDF** con logo, nombre de la empresa, RNC (si existe), cliente, productos, envío, total y tipo de pago. Se envía desde el detalle del pedido (panel) o desde la tarjeta e historial del mensajero. En el teléfono abre el menú de compartir (WhatsApp, correo…) con el PDF adjunto; en computadora se descarga. No sustituye un comprobante fiscal (NCF).
+
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
-- **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA, LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
+- **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA (abre la navegación en **Google Maps o Waze**, a elección del mensajero, y recuerda la última app usada), LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
 - Evidencia de entrega: nombre de quien recibe, notas, foto (comprimida en el dispositivo), firma, coordenadas (si hay permiso) y cobro en efectivo.
 - **COMPARTIR SEGUIMIENTO CON EL CLIENTE** desde cada entrega (WhatsApp, SMS, correo o copiar); el mensajero solo comparte, no puede regenerar ni revocar.
 - Modo sin conexión: las acciones se guardan en el dispositivo y se envían al volver internet.
 
 **Cliente** (`/seguimiento/<token>`, sin cuenta ni inicio de sesión)
 - Número y estado del pedido, progreso (✓ Recibido → Preparando → Mensajero asignado → En camino → Llegando → Entregado), mensajero, mapa con su ubicación (si la empresa lo permite), tiempo estimado de llegada y mensajes como "Tu mensajero está cerca".
-- Confirmar la ubicación, compartirla (**USAR MI UBICACIÓN ACTUAL**, con aviso previo), corregir el pin y agregar referencias.
+- Ver la dirección de entrega y el detalle del pedido, y agregar referencias para el mensajero (ej.: portón negro).
 - Contactar con la empresa o con el mensajero (si está permitido) y activar notificaciones opcionales.
 
 **Cierre automático del enlace:** en cuanto el pedido se marca como **Entregado** o **Cancelado** (por el mensajero o el administrador), todos sus enlaces se revocan, la página abierta del cliente muestra el cierre y deja de recibir datos, y el enlace responde "no disponible". No se puede volver a generar mientras el pedido siga cerrado. Así el cliente no puede seguir viendo al mensajero después de la entrega.
@@ -81,7 +86,7 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 ## Arquitectura
 
 ```
-client/   React + Vite (SPA/PWA): pantallas, Google Maps JS API, Socket.IO, service worker
+client/   React + Vite (SPA/PWA): pantallas, mapas (OpenFreeMap o Google Maps), Socket.IO, service worker
 server/   Node.js + Express 5 + Socket.IO + Knex
   src/modules/
     auth/          inicio de sesión del personal y mensajeros, contraseñas (bcrypt), sesiones JWT en cookie httpOnly
@@ -110,7 +115,14 @@ server/   Node.js + Express 5 + Socket.IO + Knex
 
 ---
 
-## Google Maps Platform
+## Mapas
+
+- **Sin configurar nada** se usa **OpenFreeMap** (teselas vectoriales de OpenStreetMap, gratis y sin clave) con Leaflet + MapLibre. Tiene estilo claro y oscuro, y las direcciones se buscan por sector o municipio y se ajustan arrastrando el pin.
+- Si defines `GOOGLE_MAPS_BROWSER_KEY`, todos los mapas pasan a **Google Maps**, con autocompletado de Places. Nunca se mezclan ambos en un mismo mapa (lo prohíben los términos de Google).
+- En el panel hay **modo oscuro** (botón de luna arriba a la derecha); los mapas cambian de estilo con él.
+- Inventario: cada producto tiene una **existencia mínima**; al bajar de ella aparece el aviso "se están acabando" en el dashboard y en Inventario, y se notifica a los administradores.
+
+## Google Maps Platform (opcional)
 
 Activa en Google Cloud las APIs **Maps JavaScript API**, **Places API (New)**, **Geocoding API** y **Routes API**, y crea **dos claves**:
 
@@ -124,7 +136,7 @@ También necesitas `GOOGLE_MAPS_MAP_ID`, un Map ID de tipo JavaScript para los m
 - El autocompletado usa `PlaceAutocompleteElement`, limitado a República Dominicana.
 - El dibujo de zonas usa una herramienta propia, porque la Drawing Library de Google fue retirada.
 - El tiempo estimado de llegada usa Routes API (`computeRoutes`, `TWO_WHEELER`) como máximo una vez cada 45 segundos por pedido. Sin clave de servidor, se estima con la distancia en línea recta × 1,35 y la velocidad promedio configurada.
-- **Sin clave de navegador** la plataforma sigue funcionando: los mapas muestran un aviso y las direcciones se capturan escribiéndolas y eligiendo provincia, municipio y sector.
+- **Sin clave de navegador** se usa OpenFreeMap (ver arriba); la plataforma funciona completa.
 
 ---
 
@@ -193,7 +205,41 @@ docker compose exec supabase-db pg_dump -U postgres postgres > respaldo.sql
 
 **¿Supabase en la nube en lugar del contenedor?** Quita los servicios `supabase-*` y define `DATABASE_URL` con la cadena de conexión de tu proyecto y `DB_SSL=true`.
 
-**Otros servidores con Docker (sin Dokploy):** `docker compose --env-file .env up -d --build`, con un proxy HTTPS delante que permita WebSockets (`/socket.io`).
+**Otros servidores con Docker (sin Dokploy ni Easypanel):** `docker compose --env-file .env up -d --build`, con un proxy HTTPS delante que permita WebSockets (`/socket.io`).
+
+## Despliegue en Easypanel
+
+Easypanel usa Docker igual que Dokploy, así que sirve el mismo `docker-compose.yml`. Hay dos formas:
+
+**A. Todo incluido (Compose, recomendado):**
+1. Crea un proyecto y luego **+ Service → Compose**. En **Source** elige GitHub, este repositorio, la rama `main` y el archivo `docker-compose.yml`.
+2. En **Environment**, pega el contenido de `.env.dokploy.example` y cambia los secretos (`openssl rand -hex 32`).
+3. En **Domains**, agrega tu dominio con destino al servicio **app**, puerto **3000**. Easypanel activa HTTPS y WebSockets solo.
+4. **Deploy** y comprueba `https://tu-dominio/healthz`.
+
+**B. Usando los servicios de Easypanel:**
+1. Crea un servicio **Postgres** (o usa Supabase en la nube) y uno **Redis** desde las plantillas de Easypanel.
+2. Crea un servicio **App** desde GitHub, con **Build: Dockerfile** (el `Dockerfile` de la raíz).
+3. En **Environment** define `NODE_ENV=production`, `PUBLIC_BASE_URL`, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `DB_CLIENT=pg`, `DATABASE_URL` y `REDIS_URL`. Usa las cadenas de conexión internas que Easypanel muestra en cada servicio. Agrega también `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
+4. En **Mounts**, agrega un volumen en `/app/server/data` para guardar las fotos de las entregas.
+5. En **Domains**, usa el puerto **3000**.
+
+## Despliegue en Vercel (frontend) + backend en Easypanel/Dokploy
+
+Vercel solo ejecuta funciones de corta duración, sin WebSockets ni procesos permanentes. Por eso el **backend** (API, tiempo real, GPS cada 15 s, notificaciones) no puede vivir allí. Lo que sí hace bien Vercel es servir el **frontend**, rápido y en todo el mundo. La combinación es:
+
+- **Vercel:** sirve la app (`client/dist`) y reenvía `/api/*` al backend con `middleware.js`. El navegador ve un solo dominio, así que la cookie de sesión funciona igual.
+- **Backend** en Easypanel, Dokploy o cualquier servidor Docker: API, base de datos y Redis.
+- **Tiempo real:** el navegador se conecta directo al backend por WebSocket con un token de 2 minutos (`/api/auth/socket-token`). Ese token no sirve para la API.
+
+Pasos:
+1. Despliega el backend (Easypanel o Dokploy) con un dominio propio, por ejemplo `https://api.tudominio.com`. En sus variables pon:
+   - `PUBLIC_BASE_URL=https://tu-app.vercel.app` (o tu dominio en Vercel). Los enlaces de seguimiento usan este dominio, y el tiempo real lo acepta automáticamente.
+   - `TRUST_PROXY=2`, para que el límite de intentos de inicio de sesión use la IP real del usuario y no la de Vercel.
+   - Opcional: `CORS_ORIGINS` con otros dominios del frontend, separados por coma (por ejemplo, los dominios de vista previa de Vercel).
+2. En Vercel: **Add New → Project**, importa este repositorio. `vercel.json` ya define la instalación, la compilación y la carpeta `client/dist`, así que no cambies nada.
+3. En **Settings → Environment Variables** de Vercel define `BACKEND_URL=https://api.tudominio.com` y vuelve a desplegar. Se usa al compilar (para el socket) y en el middleware (para la API).
+4. Abre `https://tu-app.vercel.app/healthz`: debe responder lo mismo que el backend.
 
 ## Preparado para crecer
 

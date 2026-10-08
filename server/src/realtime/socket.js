@@ -1,7 +1,7 @@
 'use strict';
 const { Server } = require('socket.io');
 const config = require('../config');
-const { resolveSession } = require('../middleware/auth');
+const { resolveSession, SOCKET_AUDIENCE } = require('../middleware/auth');
 const { resolveToken } = require('../modules/tracking/links');
 const { publicView } = require('../modules/tracking/service');
 const hub = require('./hub');
@@ -23,16 +23,22 @@ function parseCookies(header) {
  *   y solo suscribe a la sala de ese pedido.
  */
 function attachRealtime(httpServer) {
+  // Orígenes permitidos: CORS_ORIGINS y el dominio público (si el frontend está en Vercel).
+  const origins = [...new Set([...config.corsOrigins, new URL(config.publicBaseUrl).origin])];
   const io = new Server(httpServer, {
-    cors: config.corsOrigins.length ? { origin: config.corsOrigins, credentials: true } : undefined,
+    cors: { origin: origins, credentials: true },
     serveClient: false,
   });
 
   io.use(async (socket, next) => {
     try {
       const cookies = parseCookies(socket.handshake.headers.cookie);
-      const token = socket.handshake.auth?.token || cookies[config.auth.cookieName];
-      socket.data.user = await resolveSession(token);
+      const authToken = socket.handshake.auth?.token;
+      // Frontend en otro dominio: token corto de /api/auth/socket-token. Mismo dominio: cookie.
+      socket.data.user = (authToken && (await resolveSession(authToken, { audience: SOCKET_AUDIENCE })))
+        || (await resolveSession(authToken || cookies[config.auth.cookieName]));
+      // Con clave temporal no recibe datos en tiempo real hasta cambiarla.
+      if (socket.data.user?.must_change_password) socket.data.user = null;
       next();
     } catch (err) {
       next(err);

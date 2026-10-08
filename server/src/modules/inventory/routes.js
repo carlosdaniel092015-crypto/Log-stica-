@@ -19,6 +19,7 @@ const productSchema = z.object({
   description: z.string().trim().max(500).nullable().optional(),
   unit: z.string().trim().min(1).max(30).optional(),
   price: z.number().min(0).max(10_000_000),
+  min_stock: z.number().int().min(0).max(10_000_000).optional(),
   active: z.boolean().optional(),
 });
 
@@ -37,6 +38,7 @@ router.get('/overview', ah(async (_req, res) => {
       stock: Object.fromEntries(stock.filter((s) => s.courier_id === c.id).map((s) => [s.product_id, Number(s.quantity)])),
     })),
     pending_requests: Number(pending.n),
+    low_stock: (await svc.lowStockProducts()).map((p) => ({ id: p.id, name: p.name, warehouse_stock: p.warehouse_stock, min_stock: p.min_stock })),
   });
 }));
 
@@ -80,6 +82,24 @@ router.post('/products/:id/adjust', validate(z.object({ delta: z.number().int().
   });
   svc.broadcast(null, 'adjust');
   res.json(svc.mapProduct(await db('products').where({ id: req.params.id }).first()));
+}));
+
+/** Elimina un producto sin historial; si ya se usó, se debe desactivar para conservar los registros. */
+router.delete('/products/:id', ah(async (req, res) => {
+  const p = await db('products').where({ id: req.params.id }).first();
+  if (!p) throw notFound();
+  const used = (await db('order_items').where({ product_id: p.id }).first('id'))
+    || (await db('courier_stock').where({ product_id: p.id }).where('quantity', '>', 0).first('id'))
+    || (await db('inventory_request_items').where({ product_id: p.id }).first('id'));
+  if (used) throw conflict('Este producto ya tiene pedidos, inventario asignado o solicitudes. Desactívalo en lugar de eliminarlo.');
+  await db.transaction(async (trx) => {
+    await trx('inventory_movements').where({ product_id: p.id }).del();
+    await trx('courier_stock').where({ product_id: p.id }).del();
+    await trx('products').where({ id: p.id }).del();
+    await audit(req, { action: 'product.delete', entity: 'product', entityId: p.id, oldValue: { sku: p.sku, name: p.name } }, trx);
+  });
+  svc.broadcast(null, 'product');
+  res.json({ ok: true });
 }));
 
 router.get('/couriers/:id', ah(async (req, res) => {

@@ -22,7 +22,7 @@ async function main() {
 
   server.listen(config.port, () => {
     console.log(`Logística RD escuchando en ${config.publicBaseUrl} (puerto ${config.port}, BD: ${config.db.client})`);
-    if (!config.google.browserKey) console.log('Aviso: GOOGLE_MAPS_BROWSER_KEY no está configurada; los mapas mostrarán un aviso.');
+    if (!config.google.browserKey) console.log('Mapas: OpenFreeMap (gratis). Configura GOOGLE_MAPS_BROWSER_KEY para usar Google Maps.');
   });
 
   const shutdown = () => {

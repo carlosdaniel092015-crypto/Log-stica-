@@ -51,6 +51,7 @@ async function publicView(order) {
   }
   const proof = order.status === 'delivered' ? await db('delivery_proofs').where({ order_id: order.id, outcome: 'delivered' }).orderBy('created_at', 'desc').first('receiver_name', 'created_at') : null;
   const sector = order.sector_id ? await db('sectors').where({ id: order.sector_id }).first('name') : null;
+  const items = (await db('order_items').where({ order_id: order.id }).orderBy('created_at')).map((i) => ({ name: i.product_name, quantity: Number(i.quantity), total: Number(i.unit_price) * Number(i.quantity) }));
   const canEditLocation = ['new', 'preparing', 'ready', 'assigned', 'rescheduled', 'en_route'].includes(order.status);
 
   return {
@@ -67,6 +68,7 @@ async function publicView(order) {
     destination: order.lat != null ? { lat: order.lat, lng: order.lng } : null,
     location_confirmed: bool(order.location_confirmed),
     can_edit_location: canEditLocation,
+    items,
     delivery_fee: Number(order.delivery_fee),
     subtotal: Number(order.subtotal),
     total: Number(order.total),

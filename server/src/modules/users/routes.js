@@ -17,7 +17,7 @@ const ROLE_IDS = ['admin', 'dispatcher', 'courier'];
 function mapUser(u) {
   return {
     id: u.id, role: u.role_id, role_name: u.role_name, name: u.name, email: u.email, phone: u.phone,
-    active: bool(u.active), last_login_at: u.last_login_at, created_at: u.created_at, updated_at: u.updated_at,
+    active: bool(u.active), must_change_password: bool(u.must_change_password), last_login_at: u.last_login_at, created_at: u.created_at, updated_at: u.updated_at,
     courier_id: u.courier_id || null, vehicle: u.vehicle || null, plate: u.plate || null, customer_id: u.customer_id || null,
   };
 }
@@ -61,6 +61,8 @@ const userSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   phone: z.string().trim().max(40).optional().nullable(),
   password: z.string().min(8).max(100),
+  // Clave temporal: se pide cambiarla al iniciar sesión por primera vez (por defecto, sí).
+  must_change_password: z.boolean().optional(),
   vehicle: z.string().trim().max(80).optional().nullable(),
   plate: z.string().trim().max(20).optional().nullable(),
 });
@@ -69,7 +71,7 @@ router.post('/', validate(userSchema), ah(async (req, res) => {
   const b = req.body;
   if (await db('users').where({ email: b.email }).first()) throw conflict('Ya existe un usuario con ese correo.');
   const ts = now();
-  const user = { id: uuid(), role_id: b.role, name: b.name, email: b.email, phone: b.phone || null, password_hash: await bcrypt.hash(b.password, 12), active: true, token_version: 0, created_at: ts, updated_at: ts };
+  const user = { id: uuid(), role_id: b.role, name: b.name, email: b.email, phone: b.phone || null, password_hash: await bcrypt.hash(b.password, 12), must_change_password: b.must_change_password ?? true, active: true, token_version: 0, created_at: ts, updated_at: ts };
   await db.transaction(async (trx) => {
     await trx('users').insert(user);
     if (b.role === 'courier') {
@@ -81,7 +83,7 @@ router.post('/', validate(userSchema), ah(async (req, res) => {
   res.status(201).json(mapUser(await usersQuery().where('u.id', user.id).first()));
 }));
 
-router.put('/:id', validate(userSchema.partial().omit({ password: true })), ah(async (req, res) => {
+router.put('/:id', validate(userSchema.partial().omit({ password: true, must_change_password: true })), ah(async (req, res) => {
   const before = await db('users').where({ id: req.params.id }).first();
   if (!before) throw notFound();
   const b = req.body;
@@ -115,10 +117,12 @@ router.post('/:id/active', validate(z.object({ active: z.boolean() })), ah(async
   res.json({ ok: true });
 }));
 
-router.post('/:id/password', validate(z.object({ password: z.string().min(8).max(100) })), ah(async (req, res) => {
+router.post('/:id/password', validate(z.object({ password: z.string().min(8).max(100), temporary: z.boolean().optional() })), ah(async (req, res) => {
   const user = await db('users').where({ id: req.params.id }).first();
   if (!user) throw notFound();
-  await db('users').where({ id: user.id }).update({ password_hash: await bcrypt.hash(req.body.password, 12), token_version: user.token_version + 1, updated_at: now() });
+  // Una clave puesta por el administrador es temporal: el usuario la cambia al entrar.
+  const temporary = req.body.temporary ?? user.id !== req.user.id;
+  await db('users').where({ id: user.id }).update({ password_hash: await bcrypt.hash(req.body.password, 12), must_change_password: temporary, token_version: user.token_version + 1, updated_at: now() });
   await audit(req, { action: 'user.password_reset', entity: 'user', entityId: user.id });
   res.json({ ok: true });
 }));

@@ -90,6 +90,31 @@ router.get('/', requirePermission('customers.manage'), ah(async (req, res) => {
     q.where((w) => w.whereRaw('lower(name) like ?', [like]).orWhere('phone', 'like', like).orWhereRaw('lower(email) like ?', [like]));
   }
   const customers = (await q).map(mapCustomer);
+  // Resumen de compras: cantidad de pedidos, último pedido y total entregado.
+  if (customers.length) {
+    const ids = customers.map((c) => c.id);
+    const stats = await db('orders').whereIn('customer_id', ids).groupBy('customer_id')
+      .select('customer_id')
+      .count('id as orders_count')
+      .max('created_at as last_order_at')
+      .select(db.raw("sum(case when status = 'delivered' then total else 0 end) as total_spent"));
+    const byId = Object.fromEntries(stats.map((r) => [r.customer_id, r]));
+    const defaults = await db('customer_addresses as a')
+      .leftJoin('sectors as s', 's.id', 'a.sector_id')
+      .leftJoin('municipalities as m', 'm.id', 'a.municipality_id')
+      .whereIn('a.customer_id', ids)
+      .orderBy('a.is_default', 'desc')
+      .select('a.customer_id', 's.name as sector_name', 'm.name as municipality_name');
+    for (const c of customers) {
+      const st = byId[c.id];
+      const addr = defaults.find((d) => d.customer_id === c.id);
+      c.orders_count = Number(st?.orders_count || 0);
+      c.last_order_at = st?.last_order_at || null;
+      c.total_spent = Number(st?.total_spent || 0);
+      c.sector_name = addr?.sector_name || null;
+      c.municipality_name = addr?.municipality_name || null;
+    }
+  }
   if (req.query.with_addresses === 'true' && customers.length) {
     const addrs = await db('customer_addresses').whereIn('customer_id', customers.map((c) => c.id));
     for (const c of customers) c.addresses = addrs.filter((a) => a.customer_id === c.id).map(mapAddress);

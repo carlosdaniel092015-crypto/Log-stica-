@@ -8,108 +8,70 @@ import { getGeoTree } from './AddressPicker';
 import Icon from './Icon';
 import { useApp } from '../context/AppContext';
 
-/** Dibuja zonas existentes (polígonos y círculos) en un mapa. Devuelve los overlays creados. */
-export function drawZones(gm, map, zones, { faded = false, onClick } = {}) {
-  const overlays = [];
-  for (const z of zones) {
-    const style = {
-      strokeColor: z.color,
-      strokeOpacity: faded ? 0.35 : z.active ? 0.9 : 0.4,
-      strokeWeight: 2,
-      fillColor: z.color,
+/** Convierte zonas de la API en figuras para el mapa (polígonos y círculos). */
+export function zoneShapes(zones, { faded = false, onClick } = {}) {
+  return zones
+    .filter((z) => z.geometry_type !== 'none')
+    .map((z) => ({
+      id: z.id,
+      type: z.geometry_type,
+      points: z.polygon,
+      center: z.center_lat != null ? [z.center_lat, z.center_lng] : null,
+      radius: z.radius_m,
+      color: z.color,
       fillOpacity: faded ? 0.06 : z.active ? 0.18 : 0.05,
-      clickable: !!onClick,
-      map,
-    };
-    let o = null;
-    if (z.geometry_type === 'polygon' && z.polygon) o = new gm.maps.Polygon({ ...style, paths: z.polygon.map(([lat, lng]) => ({ lat, lng })) });
-    if (z.geometry_type === 'circle' && z.center_lat != null) o = new gm.maps.Circle({ ...style, center: { lat: z.center_lat, lng: z.center_lng }, radius: z.radius_m });
-    if (o) {
-      if (onClick) o.addListener('click', (e) => onClick(z, e));
-      overlays.push(o);
-    }
-  }
-  return overlays;
+      strokeOpacity: faded ? 0.35 : z.active ? 0.9 : 0.4,
+      dashed: !z.active,
+      onClick: onClick ? (lat, lng) => onClick(z, lat, lng) : undefined,
+    }));
+}
+
+/** Encaja el mapa a una zona. */
+export function fitZone(h, z) {
+  if (!h || !z) return;
+  if (z.geometry_type === 'circle') h.setView({ lat: z.center_lat, lng: z.center_lng }, 13);
+  else if (z.polygon?.length) h.fit(z.polygon.map(([lat, lng]) => ({ lat, lng })), { maxZoom: 15, padding: 40 });
 }
 
 /**
- * Herramienta de dibujo propia (la Drawing Library de Google fue retirada):
- *  - Polígono: toca el mapa para agregar vértices; luego arrastra los puntos para ajustar.
- *  - Círculo: toca el centro y ajusta el radio arrastrando el borde.
+ * Herramienta de dibujo (funciona con OpenFreeMap y con Google Maps):
+ *  - Polígono: toca el mapa para agregar vértices; arrastra los puntos para ajustar.
+ *  - Círculo: toca el centro y arrastra el punto del borde para cambiar el radio.
  */
 function ZoneDrawer({ geometry, onChange, color, otherZones }) {
   const [tool, setTool] = useState(geometry.type === 'none' ? null : geometry.type);
-  const mapRef = useRef(null);
-  const shapeRef = useRef(null);
+  const hRef = useRef(null);
   const toolRef = useRef(tool);
   toolRef.current = tool;
   const geomRef = useRef(geometry);
   geomRef.current = geometry;
 
-  const readShape = useCallback(() => {
-    const s = shapeRef.current;
-    if (!s) return;
-    if (s instanceof mapRef.current.gm.maps.Polygon) {
-      const path = s.getPath().getArray().map((p) => [Number(p.lat().toFixed(6)), Number(p.lng().toFixed(6))]);
-      onChange({ type: 'polygon', polygon: path });
-    } else {
-      const c = s.getCenter();
-      onChange({ type: 'circle', center_lat: Number(c.lat().toFixed(6)), center_lng: Number(c.lng().toFixed(6)), radius_m: Math.round(s.getRadius()) });
-    }
-  }, [onChange]);
+  const toShape = (g) =>
+    g.type === 'polygon' ? { type: 'polygon', points: g.polygon || [], color } : g.type === 'circle' && g.center_lat != null ? { type: 'circle', center: [g.center_lat, g.center_lng], radius: g.radius_m, color } : null;
+  const fromShape = useCallback(
+    (s) => onChange(s.type === 'polygon' ? { type: 'polygon', polygon: s.points } : { type: 'circle', center_lat: s.center[0], center_lng: s.center[1], radius_m: s.radius }),
+    [onChange]
+  );
 
-  const renderShape = useCallback(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const { gm, map } = m;
-    shapeRef.current?.setMap(null);
-    shapeRef.current = null;
-    const g = geomRef.current;
-    const style = { strokeColor: color, strokeWeight: 2, fillColor: color, fillOpacity: 0.25, editable: true, draggable: true, map };
-    if (g.type === 'polygon' && g.polygon?.length) {
-      const poly = g.polygon.length >= 3 ? new gm.maps.Polygon({ ...style, paths: g.polygon.map(([lat, lng]) => ({ lat, lng })) }) : new gm.maps.Polyline({ strokeColor: color, strokeWeight: 2, map, path: g.polygon.map(([lat, lng]) => ({ lat, lng })) });
-      shapeRef.current = poly;
-      if (poly.getPath && poly instanceof gm.maps.Polygon) {
-        const path = poly.getPath();
-        ['set_at', 'insert_at', 'remove_at'].forEach((ev) => path.addListener(ev, readShape));
-        poly.addListener('dragend', readShape);
-      }
-    }
-    if (g.type === 'circle' && g.center_lat != null) {
-      const circle = new gm.maps.Circle({ ...style, center: { lat: g.center_lat, lng: g.center_lng }, radius: g.radius_m || 1000 });
-      shapeRef.current = circle;
-      circle.addListener('radius_changed', readShape);
-      circle.addListener('center_changed', readShape);
-    }
-  }, [color, readShape]);
+  // Redibuja la figura editable cuando cambia la cantidad de vértices, el tipo o el color.
+  useEffect(() => {
+    hRef.current?.setEditable(toShape(geometry), fromShape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometry.type, geometry.polygon?.length, geometry.center_lat, color]);
 
-  useEffect(renderShape, [geometry.type, geometry.polygon?.length, color]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const onReady = (m) => {
-    mapRef.current = m;
-    drawZones(m.gm, m.map, otherZones, { faded: true });
-    m.map.addListener('click', (e) => {
-      const lat = Number(e.latLng.lat().toFixed(6));
-      const lng = Number(e.latLng.lng().toFixed(6));
+  const onReady = (h) => {
+    hRef.current = h;
+    h.setShapes(zoneShapes(otherZones, { faded: true }));
+    h.onClick((lat, lng) => {
       const g = geomRef.current;
-      if (toolRef.current === 'polygon') {
-        // Mientras se dibuja (menos de 3 puntos o modo agregar) cada clic agrega un vértice.
-        const pts = g.type === 'polygon' ? g.polygon || [] : [];
-        onChange({ type: 'polygon', polygon: [...pts, [lat, lng]] });
-      } else if (toolRef.current === 'circle' && g.type !== 'circle') {
-        onChange({ type: 'circle', center_lat: lat, center_lng: lng, radius_m: 1500 });
-      }
+      const p = [Number(lat.toFixed(6)), Number(lng.toFixed(6))];
+      if (toolRef.current === 'polygon') onChange({ type: 'polygon', polygon: [...(g.type === 'polygon' ? g.polygon || [] : []), p] });
+      else if (toolRef.current === 'circle' && g.type !== 'circle') onChange({ type: 'circle', center_lat: p[0], center_lng: p[1], radius_m: 1500 });
     });
-    renderShape();
+    h.setEditable(toShape(geomRef.current), fromShape);
     const g = geomRef.current;
-    if (g.type === 'polygon' && g.polygon?.length) {
-      const b = new m.gm.core.LatLngBounds();
-      g.polygon.forEach(([lat, lng]) => b.extend({ lat, lng }));
-      m.map.fitBounds(b, 40);
-    } else if (g.type === 'circle' && g.center_lat != null) {
-      m.map.setCenter({ lat: g.center_lat, lng: g.center_lng });
-      m.map.setZoom(13);
-    }
+    if (g.type === 'polygon' && g.polygon?.length) h.fit(g.polygon.map(([lat, lng]) => ({ lat, lng })), { maxZoom: 15, padding: 40 });
+    else if (g.type === 'circle' && g.center_lat != null) h.setView({ lat: g.center_lat, lng: g.center_lng }, 13);
   };
 
   const points = geometry.type === 'polygon' ? geometry.polygon?.length || 0 : 0;
@@ -123,7 +85,7 @@ function ZoneDrawer({ geometry, onChange, color, otherZones }) {
       </div>
       <div className="small muted">
         {tool === 'polygon' && (points < 3 ? `Toca el mapa para agregar los vértices del área (${points}/3 mínimo).` : `${points} vértices. Arrastra los puntos para ajustar o toca el mapa para agregar más.`)}
-        {tool === 'circle' && (geometry.type === 'circle' ? `Radio: ${(geometry.radius_m / 1000).toFixed(2)} km. Arrastra el borde o el centro para ajustar.` : 'Toca el mapa para colocar el centro del círculo.')}
+        {tool === 'circle' && (geometry.type === 'circle' ? `Radio: ${(geometry.radius_m / 1000).toFixed(2)} km. Arrastra el centro o el punto del borde para ajustar.` : 'Toca el mapa para colocar el centro del círculo.')}
         {!tool && 'Sin área dibujada: la zona se detectará por provincia, municipio o sector.'}
       </div>
       <MapView className="map" center={SD_CENTER} zoom={11} onReady={onReady} />

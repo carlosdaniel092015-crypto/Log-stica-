@@ -6,24 +6,22 @@ import { ZoneFormModal } from '../../components/ZoneEditor';
 import Icon from '../../components/Icon';
 import { can, useApp } from '../../context/AppContext';
 
+/** Precio editable en la misma tabla: se guarda al salir del campo o con Enter. */
 function PriceCell({ zone, onSaved, editable }) {
-  const { currency } = useApp();
   const [value, setValue] = useState(null);
-  const [busy, run] = useAction();
-  if (!editable || value === null) {
-    return (
-      <button className="btn btn-sm btn-ghost mono bold" disabled={!editable} onClick={() => setValue(String(zone.price ?? ''))} title={editable ? 'Cambiar precio' : undefined}>
-        {money(zone.price, currency)}
-      </button>
-    );
-  }
-  const save = () => run(async () => { onSaved(await api.patch(`/api/zones/${zone.id}/price`, { price: Number(value) })); setValue(null); }, `Precio de ${zone.name} actualizado.`);
+  const [, run] = useAction();
+  const save = () => {
+    if (value === null) return;
+    const n = Number(value);
+    setValue(null);
+    if (!Number.isFinite(n) || n < 0 || n === zone.price) return;
+    run(async () => onSaved(await api.patch(`/api/zones/${zone.id}/price`, { price: n })), `Precio de ${zone.name}: RD$${n}`);
+  };
   return (
-    <span className="row" style={{ gap: 4 }}>
-      <input className="input" style={{ width: 100, minHeight: 32 }} type="number" min="0" value={value} autoFocus onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setValue(null); }} />
-      <button className="btn btn-sm btn-primary" disabled={busy} onClick={save} aria-label="Guardar"><Icon name="check" /></button>
-      <button className="btn btn-sm btn-ghost" onClick={() => setValue(null)} aria-label="Cancelar"><Icon name="x" /></button>
-    </span>
+    <label className="price-input">
+      <span>RD$</span>
+      <input value={value ?? zone.price ?? ''} disabled={!editable} inputMode="decimal" onChange={(e) => setValue(e.target.value.replace(/[^0-9.]/g, ''))} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setValue(null); }} aria-label={`Precio de ${zone.name}`} />
+    </label>
   );
 }
 
@@ -59,7 +57,7 @@ export default function Rates() {
       <div className="page-header">
         <div>
           <h1>Tarifas de entrega</h1>
-          <p>Precios en RD$ por provincia, municipio, sector o zona personalizada. Los cambios aplican a los pedidos nuevos.</p>
+          <p>El precio se aplica según la zona donde cae la dirección. Si hay varias, gana la de mayor prioridad.</p>
         </div>
         <div className="row-wrap">
           <a className="btn" href="/api/zones/export" download><Icon name="download" /> Exportar CSV</a>
@@ -93,7 +91,7 @@ export default function Rates() {
         {zones.loading && !zones.data ? <Spinner center /> : (
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Zona</th><th>Tipo</th><th>Provincia</th><th>Municipio</th><th>Sector</th><th>Área</th><th className="num">Precio</th><th>Estado</th><th /></tr></thead>
+              <thead><tr><th>Zona</th><th>Tipo</th><th>Provincia</th><th>Municipio</th><th>Sector</th><th>Área</th><th>Precio</th><th>Estado</th><th /></tr></thead>
               <tbody>
                 {(zones.data || []).map((z) => (
                   <tr key={z.id} style={{ opacity: z.active ? 1 : 0.55 }}>
@@ -102,16 +100,17 @@ export default function Rates() {
                     <td className="small">{z.province_name || '—'}</td>
                     <td className="small">{z.municipality_name || '—'}</td>
                     <td className="small">{z.sector_name || '—'}</td>
-                    <td className="small">{z.geometry_type === 'polygon' ? 'Polígono' : z.geometry_type === 'circle' ? `Círculo ${(z.radius_m / 1000).toFixed(1)} km` : 'Por división'}</td>
-                    <td className="num"><PriceCell zone={z} editable={editable} onSaved={replace} /></td>
+                    <td className="small muted">{z.geometry_type === 'polygon' ? 'Polígono' : z.geometry_type === 'circle' ? 'Círculo' : 'Sin área'}</td>
+                    <td><PriceCell zone={z} editable={editable} onSaved={replace} /></td>
                     <td>
-                      <button className="badge" style={{ '--c': z.active ? 'var(--success)' : 'var(--muted)', cursor: editable ? 'pointer' : 'default', font: 'inherit', fontSize: '0.76rem' }} disabled={!editable || busy} onClick={() => run(async () => replace(await api.patch(`/api/zones/${z.id}/active`, { active: !z.active })), z.active ? 'Zona desactivada.' : 'Zona activada.')}>
-                        {z.active ? 'Activa' : 'Inactiva'}
-                      </button>
+                      <label className="row" style={{ gap: 8, cursor: editable ? 'pointer' : 'default' }}>
+                        <span className="switch"><input type="checkbox" checked={z.active} disabled={!editable || busy} onChange={() => run(async () => replace(await api.patch(`/api/zones/${z.id}/active`, { active: !z.active })), z.active ? 'Zona desactivada.' : 'Zona activada.')} aria-label={`Zona ${z.name} activa`} /><span /></span>
+                        <span className="small">{z.active ? 'Activa' : 'Inactiva'}</span>
+                      </label>
                     </td>
                     <td className="nowrap">
-                      {editable && <button className="btn btn-sm" onClick={() => setEditing(z)}><Icon name="edit" /> Editar</button>}{' '}
-                      {editable && <button className="btn btn-sm btn-ghost" aria-label="Eliminar" onClick={() => window.confirm(`¿Eliminar la zona "${z.name}"? Puedes desactivarla en su lugar.`) && run(async () => { await api.del(`/api/zones/${z.id}`); zones.reload(true); }, 'Zona eliminada.')}><Icon name="trash" /></button>}
+                      {editable && <button className="btn btn-sm btn-icon" onClick={() => setEditing(z)} aria-label="Editar"><Icon name="edit" /></button>}{' '}
+                      {editable && <button className="btn btn-sm btn-icon btn-ghost" aria-label="Eliminar" onClick={() => window.confirm(`¿Eliminar la zona "${z.name}"? Puedes desactivarla en su lugar.`) && run(async () => { await api.del(`/api/zones/${z.id}`); zones.reload(true); }, 'Zona eliminada.')}><Icon name="trash" /></button>}
                     </td>
                   </tr>
                 ))}

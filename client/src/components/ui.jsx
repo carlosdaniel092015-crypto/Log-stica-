@@ -156,11 +156,25 @@ export function useOnline() {
 export function OnlineIndicator() {
   const online = useOnline();
   const live = useSocketStatus();
-  if (!online) return <span className="online-pill off"><Icon name="wifiOff" size={14} /> Sin conexión</span>;
+  if (!online) return <span className="live-pill offline"><Icon name="wifiOff" size={14} /> Sin conexión</span>;
   return (
-    <span className="online-pill" style={{ color: live ? 'var(--success)' : 'var(--muted)' }} title={live ? 'Actualizaciones en tiempo real activas' : 'Conectando…'}>
-      <span className="live-dot" style={{ width: 8, height: 8, animation: live ? undefined : 'none' }} />
-      {live ? 'En vivo' : 'Conectando…'}
+    <span className={`live-pill ${live ? '' : 'off'}`} title={live ? 'Actualizaciones en tiempo real activas' : 'Conectando…'}>
+      <i /> {live ? 'En vivo' : 'Conectando…'}
+    </span>
+  );
+}
+
+const AVATAR_COLORS = ['#2563eb', '#0891b2', '#16a34a', '#7c3aed', '#d97706', '#db2777', '#0d9488', '#4f46e5'];
+export function initialsOf(name = '') {
+  return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+}
+
+/** Círculo con iniciales. `color` fija el color; si no, se deriva del nombre. */
+export function Avatar({ name, color, soft = false, size }) {
+  const c = color || AVATAR_COLORS[[...String(name || '')].reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVATAR_COLORS.length];
+  return (
+    <span className={`avatar ${soft ? 'soft' : ''} ${size === 'lg' ? 'lg' : ''}`} style={{ '--av': c }} aria-hidden="true">
+      {initialsOf(name)}
     </span>
   );
 }

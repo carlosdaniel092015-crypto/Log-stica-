@@ -5,6 +5,7 @@ import { Spinner } from './components/ui';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import TrackingPage from './pages/tracking/TrackingPage';
+import ChangePassword from './pages/ChangePassword';
 
 const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
 const Orders = lazy(() => import('./pages/admin/Orders'));
@@ -33,6 +34,7 @@ function RequireRole({ roles, children }) {
   const location = useLocation();
   if (user === undefined) return <div className="fullscreen-center"><Spinner /></div>;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (user.must_change_password) return <ChangePassword />;
   if (!roles.includes(user.role)) return <Navigate to={homeFor(user)} replace />;
   return children;
 }

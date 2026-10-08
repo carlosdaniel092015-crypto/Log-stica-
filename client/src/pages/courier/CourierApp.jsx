@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, flushOutbox, outboxSize, postOrQueue } from '../../lib/api';
-import { dateTime, distance as fmtDistance, duration, money, navigationUrl, PAYMENT_METHODS, whatsappUrl } from '../../lib/format';
-import { courierColor, initials, pinElement } from '../../lib/maps';
+import { dateTime, distance as fmtDistance, duration, money, PAYMENT_METHODS, time, whatsappUrl } from '../../lib/format';
+import { courierColor, initials } from '../../lib/maps';
 import { getCurrentPosition, geoPermissionState } from '../../lib/geolocation';
 import { CourierBadge, Empty, Field, Modal, OnlineIndicator, Spinner, StatusBadge, useAction, useAsync, useSocketEvent } from '../../components/ui';
-import { MapView, fitTo, syncMarkers } from '../../components/Map';
+import { MapView } from '../../components/Map';
 import SignaturePad, { compressImage } from '../../components/SignaturePad';
 import { InstallBanner, PushButton } from '../../components/pwa';
 import Icon from '../../components/Icon';
+import InvoiceButtons from '../../components/InvoiceButtons';
 import ShareDialog from '../../components/ShareDialog';
 import { ItemsEditor } from '../admin/Inventory';
 import { useApp } from '../../context/AppContext';
@@ -152,22 +153,69 @@ function OutcomeModal({ order, initial, settings, latest, onClose, onDone }) {
   );
 }
 
-function OrderMap({ order, me, onClose }) {
-  const ref = useRef(new Map());
-  const mapRef = useRef(null);
+/** Enlaces universales: abren la app instalada (Google Maps o Waze) o la web si no está. */
+export function navLinks(order) {
+  const has = order.lat != null && order.lng != null;
+  return {
+    google: has ? `https://www.google.com/maps/dir/?api=1&destination=${order.lat},${order.lng}&travelmode=driving` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.address || '')}`,
+    waze: has ? `https://waze.com/ul?ll=${order.lat},${order.lng}&navigate=yes` : `https://waze.com/ul?q=${encodeURIComponent(order.address || '')}&navigate=yes`,
+  };
+}
+
+/** Elegir con qué app navegar hasta el cliente. */
+function NavChooser({ order, onClose }) {
+  const links = navLinks(order);
+  const remember = (app) => {
+    try {
+      localStorage.setItem('lrd_nav_app', app);
+    } catch {
+      /* sin almacenamiento */
+    }
+    onClose();
+  };
+  let last = null;
+  try {
+    last = localStorage.getItem('lrd_nav_app');
+  } catch {
+    last = null;
+  }
+  return (
+    <Modal title="Iniciar ruta" onClose={onClose}>
+      <div className="stack">
+        <p className="small muted">Abre la navegación hacia <strong>{order.customer_name}</strong> con la app que prefieras. Si no la tienes instalada, se abre en el navegador.</p>
+        <a className={`nav-option ${last === 'google' ? 'last' : ''}`} href={links.google} target="_blank" rel="noreferrer" onClick={() => remember('google')}>
+          <span className="nav-logo" style={{ background: '#fff' }}><img src="/icons/google-maps.svg" alt="" width="28" height="28" /></span>
+          <span className="spacer"><strong>Google Maps</strong><small>Rutas con tráfico en tiempo real</small></span>
+          <Icon name="chevron" size={20} />
+        </a>
+        <a className={`nav-option ${last === 'waze' ? 'last' : ''}`} href={links.waze} target="_blank" rel="noreferrer" onClick={() => remember('waze')}>
+          <span className="nav-logo" style={{ background: '#33ccff' }}><img src="/icons/waze.svg" alt="" width="28" height="28" /></span>
+          <span className="spacer"><strong>Waze</strong><small>Alertas de tránsito y policía</small></span>
+          <Icon name="chevron" size={20} />
+        </a>
+        {order.lat == null && <div className="small" style={{ color: 'var(--warning)' }}>Este pedido no tiene coordenadas: se buscará por la dirección escrita.</div>}
+      </div>
+    </Modal>
+  );
+}
+
+function OrderMap({ order, me, onClose, onNavigate }) {
+  const hRef = useRef(null);
   const draw = useCallback(() => {
-    const m = mapRef.current;
-    if (!m) return;
-    const items = [];
-    if (order.lat != null) items.push({ id: 'dest', position: { lat: order.lat, lng: order.lng }, content: pinElement({ color: '#dc2626' }), title: order.address });
-    if (me) items.push({ id: 'me', position: { lat: me.lat, lng: me.lng }, content: pinElement({ color: '#2563eb', label: 'Yo', pulse: true }), title: 'Mi ubicación' });
-    syncMarkers(ref.current, m.map, m.gm, items);
+    const h = hRef.current;
+    if (!h) return;
+    const dest = order.lat != null ? { lat: order.lat, lng: order.lng } : null;
+    h.setMarkers([
+      ...(dest ? [{ id: 'dest', ...dest, kind: 'dest', color: '#dc2626', size: 32, title: order.address }] : []),
+      ...(me ? [{ id: 'me', lat: me.lat, lng: me.lng, kind: 'courier', color: '#2563eb', label: 'Yo', pulse: true, title: 'Mi ubicación' }] : []),
+    ]);
+    h.setLines(dest && me ? [{ id: 'r', from: [me.lat, me.lng], to: [dest.lat, dest.lng] }] : []);
   }, [order, me]);
   useEffect(draw, [draw]);
   return (
-    <Modal title={`${order.customer_name} · #${order.order_number}`} onClose={onClose} size="lg" footer={<a className="btn btn-primary" href={navigationUrl(order.lat, order.lng, order.address)} target="_blank" rel="noreferrer"><Icon name="navigation" /> Iniciar navegación</a>}>
+    <Modal title={`${order.customer_name} · #${order.order_number}`} onClose={onClose} size="lg" footer={<button className="btn btn-primary btn-block" onClick={onNavigate}><Icon name="navigation" /> Iniciar ruta (Google Maps o Waze)</button>}>
       <div className="stack-sm">
-        <MapView className="map" zoom={15} center={order.lat != null ? { lat: order.lat, lng: order.lng } : undefined} onReady={(m) => { mapRef.current = m; draw(); fitTo(m.map, m.gm, [order.lat != null ? { lat: order.lat, lng: order.lng } : null, me], { maxZoom: 16 }); }} />
+        <MapView className="map" zoom={15} center={order.lat != null ? { lat: order.lat, lng: order.lng } : undefined} onReady={(h) => { hRef.current = h; draw(); h.fit([order.lat != null ? { lat: order.lat, lng: order.lng } : null, me], { maxZoom: 16 }); }} />
         <div className="small"><strong>{order.address}</strong></div>
         {order.reference && <div className="small muted">Referencia: {order.reference}</div>}
         {!order.location_confirmed && <div className="small" style={{ color: 'var(--warning)' }}>El cliente aún no ha confirmado su ubicación en el mapa.</div>}
@@ -176,14 +224,15 @@ function OrderMap({ order, me, onClose }) {
   );
 }
 
-function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onShare, busy }) {
+function DeliveryCard({ order, active, distanceM, onAction, onMap, onNavigate, onShare, busy }) {
   const { currency } = useApp();
   const st = order.status;
+  const toCollect = order.payment_status !== 'paid';
   const primary = (() => {
     if (st === 'assigned' || st === 'failed' || st === 'customer_unavailable')
-      return <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={() => onAction(order, 'en_route')}><Icon name="navigation" /> VOY HACIA ESTE CLIENTE</button>;
+      return <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={() => onAction(order, 'en_route')}>VOY HACIA ESTE CLIENTE</button>;
     if (st === 'en_route' || st === 'arriving')
-      return <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={() => onAction(order, 'arrived')}><Icon name="pin" /> LLEGUÉ</button>;
+      return <button className="btn btn-primary btn-lg btn-block" disabled={busy} onClick={() => onAction(order, 'arrived')}>LLEGUÉ</button>;
     if (st === 'arrived')
       return (
         <div className="grid grid-2" style={{ gap: 8 }}>
@@ -198,38 +247,45 @@ function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onS
     <div className={`card delivery-card ${active ? 'active' : ''}`}>
       <div className="row" style={{ alignItems: 'flex-start' }}>
         <div className="spacer">
-          <div className="row" style={{ gap: 8 }}>
-            {order.route_order != null && <span className="badge no-dot" style={{ '--c': 'var(--primary)' }}>{order.route_order}</span>}
-            <strong style={{ fontSize: '1.05rem' }}>{order.customer_name}</strong>
-          </div>
-          <div className="small muted">Pedido #{order.order_number}{order.priority >= 5 ? ' · ⚡ Prioridad alta' : ''}</div>
+          <strong style={{ fontSize: '1.12rem' }}>{order.customer_name}</strong>
+          <div className="small muted">#{order.order_number}{order.sector_name ? ` · ${order.sector_name}` : ''}{order.priority >= 5 ? ' · ⚡ Prioridad' : ''}</div>
         </div>
         <StatusBadge status={st} />
       </div>
-      <div className="small"><Icon name="pin" size={14} /> {order.address}</div>
-      {order.reference && <div className="small muted">Ref.: {order.reference}</div>}
+      <div className="row" style={{ alignItems: 'flex-start', gap: 8 }}>
+        <span style={{ color: 'var(--danger)', marginTop: 1 }}><Icon name="pin" size={18} /></span>
+        <div>
+          <div className="bold">{order.address}</div>
+          {order.reference && <div className="small">Ref.: {order.reference}</div>}
+        </div>
+      </div>
       <div className="delivery-meta">
-        <div><span className="muted">Sector:</span> {order.sector_name || order.municipality_name || '—'}</div>
-        <div><span className="muted">Teléfono:</span> {order.phone}</div>
-        <div><span className="muted">Envío:</span> {money(order.delivery_fee, currency)}</div>
-        <div><span className="muted">Cobrar:</span> <strong>{order.payment_status === 'paid' ? 'Pagado' : money(order.total, currency)}</strong></div>
-        <div><span className="muted">Pago:</span> {PAYMENT_METHODS[order.payment_method]}</div>
-        {distanceM != null && <div><span className="muted">Distancia:</span> {fmtDistance(distanceM)}</div>}
+        <div><span className="meta-label">Teléfono</span><span className="mono">{order.phone}</span></div>
+        <div><span className="meta-label">Distancia</span>{distanceM != null ? fmtDistance(distanceM) : '—'}</div>
+        <div><span className="meta-label">Envío</span>{money(order.delivery_fee, currency)}</div>
+        <div><span className="meta-label">Pago</span>{PAYMENT_METHODS[order.payment_method]}</div>
+      </div>
+      <div className="collect-box">
+        <span>{toCollect ? 'Monto a cobrar' : 'Pagado'}</span>
+        <strong>{money(order.total, currency)}</strong>
       </div>
       {order.items?.length > 0 && (
-        <div className="small" style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '6px 10px' }}>
-          <strong>Productos:</strong> {order.items.map((i) => `${i.quantity} × ${i.name}`).join(' · ')}
+        <div className="stack-sm" style={{ gap: 4 }}>
+          {order.items.map((i) => <div key={i.product_id} className="row small"><span className="spacer">{i.quantity}× {i.name}</span><span className="muted mono">{money(i.quantity * i.unit_price, currency)}</span></div>)}
         </div>
       )}
       {order.notes && <div className="alert alert-info small">{order.notes}</div>}
       {active && order.eta_seconds != null && <div className="small" style={{ color: 'var(--primary)' }}>Llegada estimada: {duration(order.eta_seconds)}</div>}
       <div className="delivery-actions">
         <button className="btn" onClick={() => onMap(order)}><Icon name="map" />VER MAPA</button>
-        <a className="btn" href={navigationUrl(order.lat, order.lng, order.address)} target="_blank" rel="noreferrer"><Icon name="navigation" />INICIAR RUTA</a>
+        <button className="btn" onClick={() => onNavigate(order)}><Icon name="navigation" />INICIAR RUTA</button>
         <a className="btn" href={`tel:${order.phone}`}><Icon name="phone" />LLAMAR</a>
-        <a className="btn" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>
+        <a className="btn btn-wa" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>
       </div>
-      <button className="btn btn-sm" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO CON EL CLIENTE</button>
+      <div className="share-row">
+        <button className="btn btn-share" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO</button>
+        <InvoiceButtons order={order} base="/api/courier/orders" className="btn btn-share" compact />
+      </div>
       {primary}
       {(st === 'en_route' || st === 'arriving') && (
         <div className="grid grid-2" style={{ gap: 8 }}>
@@ -237,7 +293,6 @@ function DeliveryCard({ order, active, distanceM, settings, onAction, onMap, onS
           <button className="btn" disabled={busy} onClick={() => onAction(order, 'failed')}><Icon name="x" /> NO ENTREGADO</button>
         </div>
       )}
-      {settings && null}
     </div>
   );
 }
@@ -306,7 +361,10 @@ function History() {
         <div key={o.id} className="card" style={{ padding: 12 }}>
           <div className="row"><strong className="spacer">#{o.order_number} · {o.customer_name}</strong><StatusBadge status={o.status} /></div>
           <div className="small muted">{o.address}</div>
-          <div className="small">{dateTime(o.delivered_at || o.created_at)} · {money(o.delivery_fee, currency)}</div>
+          <div className="row" style={{ marginTop: 4 }}>
+            <span className="small spacer">{dateTime(o.delivered_at || o.created_at)} · {money(o.total ?? o.delivery_fee, currency)}</span>
+            {o.status === 'delivered' && <InvoiceButtons order={o} base="/api/courier/orders" className="btn btn-sm" compact />}
+          </div>
         </div>
       ))}
     </div>
@@ -314,7 +372,7 @@ function History() {
 }
 
 export default function CourierApp() {
-  const { user, logout, toast } = useApp();
+  const { user, logout, toast, isDark, toggleTheme } = useApp();
   const me = useAsync(() => api.get('/api/courier/me'), []);
   const orders = useAsync(() => api.get('/api/courier/orders'), []);
   const [tab, setTab] = useState('active');
@@ -322,6 +380,7 @@ export default function CourierApp() {
   const [outcome, setOutcome] = useState(null);
   const [mapOrder, setMapOrder] = useState(null);
   const [shareOrder, setShareOrder] = useState(null);
+  const [navOrder, setNavOrder] = useState(null);
   const [pending, setPending] = useState(outboxSize());
   const [busy, run] = useAction();
   const courier = me.data?.courier;
@@ -402,67 +461,71 @@ export default function CourierApp() {
   return (
     <div className="mobile-app">
       <header className="mobile-header">
-        <div className="map-pin" style={{ '--pin': courierColor(courier.status), '--size': '34px', transform: 'none', borderRadius: '50%' }}><span style={{ transform: 'none' }}>{initials(user.name)}</span></div>
+        <span className="avatar lg" style={{ '--av': '#2563eb', border: '2px solid rgb(255 255 255 / 0.85)' }}>{initials(user.name)}</span>
         <div className="spacer">
-          <div className="bold">{user.name}</div>
-          <div className="tiny" style={{ opacity: 0.8 }}>{courier.status_label}</div>
+          <div className="bold" style={{ fontSize: '1.05rem' }}>{user.name}</div>
+          <div className="tiny row" style={{ gap: 6, opacity: 0.9 }}><span className="kpi-dot" style={{ background: courierColor(courier.status) }} />{courier.status_label}</div>
         </div>
         <OnlineIndicator />
+        <button className="btn btn-ghost btn-icon" onClick={toggleTheme} aria-label={isDark ? 'Modo claro' : 'Modo oscuro'}><Icon name={isDark ? 'sun' : 'moon'} /></button>
         <button className="btn btn-ghost btn-icon" onClick={logout} aria-label="Cerrar sesión"><Icon name="logout" /></button>
       </header>
 
-      <main className="stack" style={{ padding: 16 }}>
-        <InstallBanner recommended storageKey="lrd_install_courier" />
+      <main className="stack" style={{ padding: 14 }}>
         {pending > 0 && <div className="alert alert-warning small">{pending} acción(es) pendiente(s) de sincronizar. Se enviarán al recuperar la conexión.</div>}
 
-        {!courier.shift_active ? (
-          <div className="card card-body stack">
-            <h2>Hola, {user.name.split(' ')[0]} 👋</h2>
-            <p className="small muted">Inicia tu jornada para recibir y atender entregas.</p>
-            <ShiftStart busy={busy} onStart={(share) => run(async () => setCourier(await api.post('/api/courier/shift/start', { sharing_location: share })), share ? 'Jornada iniciada con ubicación activa.' : 'Jornada iniciada.')} />
+        <div className="card card-body stack-sm">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <strong>Jornada</strong>
+            <span className="small muted">{courier.shift_active ? `Iniciada ${time(courier.shift_started_at)}` : 'Sin iniciar'}</span>
           </div>
-        ) : (
-          <div className="card card-body stack-sm">
-            {courier.sharing_location ? (
-              <div className="status-bar on"><span className="live-dot" /> UBICACIÓN ACTIVA {position?.accuracy ? <span className="tiny" style={{ fontWeight: 500 }}>(±{Math.round(position.accuracy)} m)</span> : ''}</div>
-            ) : (
-              <div className="status-bar off"><Icon name="crosshair" size={18} /> Ubicación no compartida</div>
-            )}
-            {trackError && <div className="alert alert-warning small">{trackError}</div>}
-            {courier.sharing_location && (
-              <div className="tiny muted">
-                Mantén esta pantalla abierta mientras trabajas: los navegadores pausan el GPS cuando la app se cierra o queda en segundo plano.
-                {wake.supported ? (wake.on ? ' La pantalla se mantendrá encendida.' : '') : ''}
-              </div>
-            )}
-            <div className="grid grid-2" style={{ gap: 8 }}>
+          {!courier.shift_active ? (
+            <>
+              <p className="small muted">Inicia tu jornada para recibir rutas y que el despacho vea tu ubicación.</p>
+              <ShiftStart busy={busy} onStart={(share) => run(async () => setCourier(await api.post('/api/courier/shift/start', { sharing_location: share })), share ? 'Jornada iniciada con ubicación activa.' : 'Jornada iniciada.')} />
+            </>
+          ) : (
+            <>
               {courier.sharing_location ? (
-                <button className="btn btn-danger" disabled={busy} onClick={() => run(async () => setCourier(await api.post('/api/courier/sharing', { sharing: false })), 'Dejaste de compartir tu ubicación.')}>DEJAR DE COMPARTIR UBICACIÓN</button>
+                <div className="status-bar on"><span className="live-dot" /> UBICACIÓN ACTIVA <span className="spacer" /><span className="tiny" style={{ fontWeight: 500 }}>cada {settings.location_update_seconds || 15} s</span></div>
               ) : (
-                <button className="btn btn-primary" disabled={busy || !settings.courier_tracking_enabled} onClick={() => run(async () => { await getCurrentPosition(); setCourier(await api.post('/api/courier/sharing', { sharing: true })); }, 'Ubicación activa.')}>COMPARTIR UBICACIÓN</button>
+                <div className="status-bar off"><Icon name="crosshair" size={18} /> Ubicación no compartida</div>
               )}
-              <button className="btn" disabled={busy} onClick={() => run(async () => setCourier(await api.post('/api/courier/pause', { paused: courier.status !== 'paused' })))}>
-                <Icon name={courier.status === 'paused' ? 'play' : 'pause'} /> {courier.status === 'paused' ? 'Reanudar' : 'Pausar'}
-              </button>
-            </div>
-            <div className="row-wrap" style={{ justifyContent: 'space-between' }}>
-              <CourierBadge status={courier.status} />
-              <PushButton className="btn btn-sm btn-ghost" label="Notificaciones" />
-              <button className="btn btn-sm btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={() => window.confirm('¿Terminar tu jornada? Se detendrá el seguimiento de ubicación.') && run(async () => setCourier(await api.post('/api/courier/shift/end')), 'Jornada terminada.')}>Terminar jornada</button>
-            </div>
-          </div>
-        )}
-
-        <div className="tabs" role="tablist">
-          <button className={`tab ${tab === 'active' ? 'active' : ''}`} onClick={() => setTab('active')}>MIS ENTREGAS ({orders.data?.length || 0})</button>
-          <button className={`tab ${tab === 'inventory' ? 'active' : ''}`} onClick={() => setTab('inventory')}>Mi inventario</button>
-          <button className={`tab ${tab === 'history' ? 'active' : ''}`} onClick={() => setTab('history')}>Historial</button>
+              {trackError && <div className="alert alert-warning small">{trackError}</div>}
+              {courier.sharing_location ? (
+                <button className="btn btn-danger btn-lg" disabled={busy} onClick={() => run(async () => setCourier(await api.post('/api/courier/sharing', { sharing: false })), 'Dejaste de compartir tu ubicación.')}><Icon name="crosshair" /> DEJAR DE COMPARTIR UBICACIÓN</button>
+              ) : (
+                <button className="btn btn-primary btn-lg" disabled={busy || !settings.courier_tracking_enabled} onClick={() => run(async () => { await getCurrentPosition(); setCourier(await api.post('/api/courier/sharing', { sharing: true })); }, 'Ubicación activa.')}><Icon name="crosshair" /> COMPARTIR UBICACIÓN</button>
+              )}
+              <div className="grid grid-2" style={{ gap: 8 }}>
+                <button className="btn" disabled={busy} onClick={() => run(async () => setCourier(await api.post('/api/courier/pause', { paused: courier.status !== 'paused' })))}>
+                  <Icon name={courier.status === 'paused' ? 'play' : 'pause'} /> {courier.status === 'paused' ? 'Reanudar' : 'Pausar'}
+                </button>
+                <button className="btn btn-outline-danger" disabled={busy} onClick={() => window.confirm('¿Terminar tu jornada? Se detendrá el seguimiento de ubicación.') && run(async () => setCourier(await api.post('/api/courier/shift/end')), 'Jornada terminada.')}><Icon name="power" /> Terminar jornada</button>
+              </div>
+              {courier.sharing_location && (
+                <div className="tiny muted">Mantén esta pantalla abierta: los navegadores pausan el GPS cuando la app se cierra o queda en segundo plano.{wake.supported && wake.on ? ' La pantalla se mantendrá encendida.' : ''}</div>
+              )}
+            </>
+          )}
         </div>
+
+        <div className="card seg-tabs" role="tablist">
+          {[['active', 'MIS ENTREGAS'], ['inventory', 'Mi inventario'], ['history', 'Historial']].map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
+          ))}
+        </div>
+
+        <InstallBanner recommended storageKey="lrd_install_courier" />
 
         {tab === 'inventory' ? <CourierInventory /> : tab === 'history' ? <History /> : (
           <>
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <span className="small muted">{activeOrder ? `Atendiendo: ${activeOrder.customer_name}` : 'Selecciona el cliente que vas a atender'}</span>
+              <h2>Mis entregas</h2>
+              <span className="small muted">{orders.data?.length || 0} pendientes · {courier.delivered_today} entregadas hoy</span>
+            </div>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <span className="small muted">{activeOrder ? `Atendiendo: ${activeOrder.customer_name}` : 'Elige el cliente que vas a atender'}</span>
               <select className="select" style={{ width: 'auto', minHeight: 34 }} value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Ordenar">
                 <option value="route">Orden asignado</option>
                 <option value="priority">Prioridad</option>
@@ -470,8 +533,9 @@ export default function CourierApp() {
               </select>
             </div>
             {orders.loading && !orders.data ? <Spinner center /> : sorted.length === 0 ? <Empty icon="box" title="No tienes entregas asignadas">Cuando te asignen un pedido aparecerá aquí al instante.</Empty> : (
-              sorted.map(({ o, d }) => <DeliveryCard key={o.id} order={o} distanceM={d} active={o.id === activeOrder?.id} settings={settings} busy={busy} onAction={act} onMap={setMapOrder} onShare={setShareOrder} />)
+              sorted.map(({ o, d }) => <DeliveryCard key={o.id} order={o} distanceM={d} active={o.id === activeOrder?.id} busy={busy} onAction={act} onMap={setMapOrder} onNavigate={setNavOrder} onShare={setShareOrder} />)
             )}
+            <div className="row-wrap" style={{ justifyContent: 'center' }}><PushButton className="btn btn-sm btn-ghost" label="Activar notificaciones" /></div>
           </>
         )}
       </main>
@@ -492,7 +556,8 @@ export default function CourierApp() {
         />
       )}
       {shareOrder && <ShareDialog orderId={shareOrder.id} orderNumber={shareOrder.order_number} endpoint={`/api/courier/orders/${shareOrder.id}/share`} manage={false} onClose={() => setShareOrder(null)} />}
-      {mapOrder && <OrderMap order={mapOrder} me={position || courier.location} onClose={() => setMapOrder(null)} />}
+      {mapOrder && <OrderMap order={mapOrder} me={position || courier.location} onClose={() => setMapOrder(null)} onNavigate={() => { setNavOrder(mapOrder); setMapOrder(null); }} />}
+      {navOrder && <NavChooser order={navOrder} onClose={() => setNavOrder(null)} />}
     </div>
   );
 }

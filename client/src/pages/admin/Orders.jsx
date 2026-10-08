@@ -8,15 +8,17 @@ import OrderForm from '../../components/OrderForm';
 import ShareDialog from '../../components/ShareDialog';
 import { can, useApp } from '../../context/AppContext';
 
+const OPEN = ['new', 'preparing', 'ready', 'rescheduled', 'assigned', 'en_route', 'arriving', 'arrived', 'failed', 'customer_unavailable'];
 const GROUPS = [
-  { key: '', label: 'Todos' },
+  { key: '', label: 'Todos', match: () => true },
   { key: 'new,preparing,ready,rescheduled', label: 'Pendientes' },
   { key: 'assigned', label: 'Asignados' },
   { key: 'en_route,arriving,arrived', label: 'En camino' },
   { key: 'delivered', label: 'Entregados' },
   { key: 'failed,customer_unavailable', label: 'No entregados' },
   { key: 'cancelled', label: 'Cancelados' },
-];
+  { key: 'unassigned', label: 'Sin mensajero', warn: true, match: (o) => !o.courier_id && OPEN.includes(o.status) },
+].map((g) => ({ ...g, match: g.match || ((o) => g.key.split(',').includes(o.status)) }));
 
 export default function Orders() {
   const { user, currency } = useApp();
@@ -41,16 +43,17 @@ export default function Orders() {
     return { from: from.toISOString(), to: new Date(from.getTime() + 86400_000 - 1).toISOString() };
   }, [date]);
 
-  const orders = useAsync(() => api.get(`/api/orders${qs({ status, q, courier_id: courierId, ...range, limit: 300 })}`), [status, q, courierId, range]);
+  const orders = useAsync(() => api.get(`/api/orders${qs({ q, courier_id: courierId, ...range, limit: 500 })}`), [q, courierId, range]);
+  const group = GROUPS.find((g) => g.key === status) || GROUPS[0];
+  const visible = (orders.data || []).filter(group.match);
   const couriers = useAsync(() => api.get('/api/couriers?active=true'), []);
 
   useSocketEvent('order:updated', (o) => {
     orders.setData((list) => {
       if (!list) return list;
       const i = list.findIndex((x) => x.id === o.id);
-      const matches = !status || status.split(',').includes(o.status);
-      if (i >= 0) return matches ? list.map((x) => (x.id === o.id ? o : x)) : list.filter((x) => x.id !== o.id);
-      return matches && !q && !courierId && !date ? [o, ...list] : list;
+      if (i >= 0) return list.map((x) => (x.id === o.id ? o : x));
+      return !q && !courierId && !date ? [o, ...list] : list;
     });
   });
 
@@ -62,7 +65,7 @@ export default function Orders() {
       <div className="page-header">
         <div>
           <h1>Pedidos</h1>
-          <p>Crea, asigna y da seguimiento a todas las entregas.</p>
+          <p>{visible.length} de {orders.data?.length || 0} pedidos · las filas cambian solas cuando un mensajero actualiza el estado</p>
         </div>
         {can(user, 'orders.manage') && (
           <button className="btn btn-primary" onClick={() => setCreating(true)}><Icon name="plus" /> Nuevo pedido</button>
@@ -70,12 +73,21 @@ export default function Orders() {
       </div>
 
       <div className="chips" style={{ marginBottom: 12 }}>
-        {GROUPS.map((g) => (
-          <button key={g.key} className={`chip ${status === g.key ? 'active' : ''}`} onClick={() => setParams(g.key ? { status: g.key } : {})}>{g.label}</button>
-        ))}
+        {GROUPS.map((g) => {
+          const n = (orders.data || []).filter(g.match).length;
+          if (g.warn && !n) return null;
+          return (
+            <button key={g.key} className={`chip ${g.warn ? 'warn' : ''} ${status === g.key ? 'active' : ''}`} onClick={() => setParams(g.key ? { status: g.key } : {})}>
+              {g.label}<span className="count">{n}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="filters">
-        <input className="input grow" placeholder="Buscar por #pedido, cliente, teléfono o dirección" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="search-box grow">
+          <Icon name="search" size={18} />
+          <input className="input" placeholder="Buscar por #pedido, cliente, teléfono o sector" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
         <select className="select" value={courierId} onChange={(e) => setCourierId(e.target.value)} aria-label="Mensajero">
           <option value="">Todos los mensajeros</option>
           {(couriers.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -89,13 +101,13 @@ export default function Orders() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Pedido</th><th>Cliente</th><th>Sector / zona</th><th className="num">Envío</th><th className="num">Total</th><th>Pago</th><th>Estado</th><th>Mensajero</th><th>Creado</th><th />
+                  <th>#Pedido</th><th>Cliente</th><th>Sector / zona</th><th className="num">Envío</th><th className="num">Total</th><th>Pago</th><th>Estado</th><th>Mensajero</th><th>Creado</th><th />
                 </tr>
               </thead>
               <tbody>
-                {(orders.data || []).map((o) => (
+                {visible.map((o) => (
                   <tr key={o.id} className={`clickable ${o.status === 'delivered' ? 'row-success' : ['failed', 'customer_unavailable'].includes(o.status) ? 'row-failure' : ''} ${flash[o.id] ? 'row-flash' : ''}`} onClick={() => navigate(`/admin/pedidos/${o.id}`)}>
-                    <td className="bold nowrap">#{o.order_number}{o.priority >= 5 && <span className="badge no-dot" style={{ '--c': 'var(--danger)', marginLeft: 6 }}>{o.priority >= 10 ? 'Urgente' : 'Alta'}</span>}</td>
+                    <td className="bold nowrap" style={{ color: 'var(--primary)' }}>#{o.order_number}{o.priority >= 5 && <span className="badge no-dot" style={{ '--c': 'var(--danger)', marginLeft: 6 }}>{o.priority >= 10 ? 'Urgente' : 'Alta'}</span>}</td>
                     <td><div>{o.customer_name}</div><div className="tiny muted">{o.phone}</div></td>
                     <td><div className="ellipsis" style={{ maxWidth: 200 }}>{o.sector_name || o.municipality_name || '—'}</div><div className="tiny muted">{o.zone_name || 'Sin zona'}</div></td>
                     <td className="num">{money(o.delivery_fee, currency)}{o.fee_overridden && <span title="Costo modificado manualmente"> ✎</span>}</td>
@@ -112,13 +124,13 @@ export default function Orders() {
                     </td>
                     <td className="small nowrap">{dateTime(o.created_at)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      {!['delivered', 'cancelled'].includes(o.status) && <button className="btn btn-sm btn-ghost" title="Compartir seguimiento" onClick={() => setSharing(o)}><Icon name="share" /></button>}
+                      {!['delivered', 'cancelled'].includes(o.status) && <button className="btn btn-sm btn-icon" title="Compartir seguimiento" aria-label="Compartir seguimiento" onClick={() => setSharing(o)}><Icon name="share" /></button>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {orders.data?.length === 0 && <Empty title="No hay pedidos con estos filtros" />}
+            {visible.length === 0 && <Empty title="No hay pedidos con estos filtros" />}
           </div>
         )}
       </div>

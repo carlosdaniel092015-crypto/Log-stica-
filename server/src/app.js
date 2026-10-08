@@ -10,8 +10,8 @@ const config = require('./config');
 const { HttpError } = require('./utils/http');
 const { rateLimitStore, redisHealthy } = require('./infra/redis');
 const { db } = require('./db');
-const { authOptional, requireStaff } = require('./middleware/auth');
-const { getSettings, publicSettings } = require('./modules/settings/service');
+const { authOptional, requireStaff, requirePasswordChanged } = require('./middleware/auth');
+const { getSettings, publicSettings, getLogo } = require('./modules/settings/service');
 const { getVapid } = require('./modules/notifications/push');
 const { STATUS_LABELS, STAFF_TRANSITIONS } = require('./modules/orders/statuses');
 const { COURIER_STATUS_LABELS } = require('./modules/couriers/service');
@@ -29,6 +29,7 @@ function createApp() {
     });
   }
 
+  const openfreemap = ['https://tiles.openfreemap.org'];
   const google = ['https://*.googleapis.com', 'https://*.gstatic.com', 'https://*.google.com', 'https://*.ggpht.com', 'https://*.googleusercontent.com'];
   app.use(
     helmet({
@@ -39,8 +40,8 @@ function createApp() {
           'script-src': ["'self'", "'unsafe-eval'", ...google],
           'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
-          'img-src': ["'self'", 'data:', 'blob:', ...google],
-          'connect-src': ["'self'", 'ws:', 'wss:', 'data:', 'blob:', ...google],
+          'img-src': ["'self'", 'data:', 'blob:', ...google, ...openfreemap],
+          'connect-src': ["'self'", 'ws:', 'wss:', 'data:', 'blob:', ...google, ...openfreemap],
           'worker-src': ["'self'", 'blob:'],
           'frame-src': ['https://*.google.com'],
           'upgrade-insecure-requests': config.forceHttps ? [] : null,
@@ -91,6 +92,7 @@ function createApp() {
     next();
   });
   api.use(authOptional);
+  api.use(requirePasswordChanged);
 
   api.get('/public/config', async (_req, res, next) => {
     try {
@@ -104,6 +106,16 @@ function createApp() {
         transitions: STAFF_TRANSITIONS,
         courierStatuses: COURIER_STATUS_LABELS,
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  api.get('/public/logo', async (_req, res, next) => {
+    try {
+      const logo = await getLogo();
+      if (!logo) return res.status(404).end();
+      res.set({ 'Content-Type': logo.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' }).send(logo.buffer);
     } catch (err) {
       next(err);
     }
