@@ -200,7 +200,41 @@ docker compose exec supabase-db pg_dump -U postgres postgres > respaldo.sql
 
 **¿Supabase en la nube en lugar del contenedor?** Quita los servicios `supabase-*` y define `DATABASE_URL` con la cadena de conexión de tu proyecto y `DB_SSL=true`.
 
-**Otros servidores con Docker (sin Dokploy):** `docker compose --env-file .env up -d --build`, con un proxy HTTPS delante que permita WebSockets (`/socket.io`).
+**Otros servidores con Docker (sin Dokploy ni Easypanel):** `docker compose --env-file .env up -d --build`, con un proxy HTTPS delante que permita WebSockets (`/socket.io`).
+
+## Despliegue en Easypanel
+
+Easypanel usa Docker igual que Dokploy, así que sirve el mismo `docker-compose.yml`. Hay dos formas:
+
+**A. Todo incluido (Compose, recomendado):**
+1. Crea un proyecto y luego **+ Service → Compose**. En **Source** elige GitHub, este repositorio, la rama `main` y el archivo `docker-compose.yml`.
+2. En **Environment**, pega el contenido de `.env.dokploy.example` y cambia los secretos (`openssl rand -hex 32`).
+3. En **Domains**, agrega tu dominio con destino al servicio **app**, puerto **3000**. Easypanel activa HTTPS y WebSockets solo.
+4. **Deploy** y comprueba `https://tu-dominio/healthz`.
+
+**B. Usando los servicios de Easypanel:**
+1. Crea un servicio **Postgres** (o usa Supabase en la nube) y uno **Redis** desde las plantillas de Easypanel.
+2. Crea un servicio **App** desde GitHub, con **Build: Dockerfile** (el `Dockerfile` de la raíz).
+3. En **Environment** define `NODE_ENV=production`, `PUBLIC_BASE_URL`, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `DB_CLIENT=pg`, `DATABASE_URL` y `REDIS_URL`. Usa las cadenas de conexión internas que Easypanel muestra en cada servicio. Agrega también `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
+4. En **Mounts**, agrega un volumen en `/app/server/data` para guardar las fotos de las entregas.
+5. En **Domains**, usa el puerto **3000**.
+
+## Despliegue en Vercel (frontend) + backend en Easypanel/Dokploy
+
+Vercel solo ejecuta funciones de corta duración, sin WebSockets ni procesos permanentes. Por eso el **backend** (API, tiempo real, GPS cada 15 s, notificaciones) no puede vivir allí. Lo que sí hace bien Vercel es servir el **frontend**, rápido y en todo el mundo. La combinación es:
+
+- **Vercel:** sirve la app (`client/dist`) y reenvía `/api/*` al backend con `middleware.js`. El navegador ve un solo dominio, así que la cookie de sesión funciona igual.
+- **Backend** en Easypanel, Dokploy o cualquier servidor Docker: API, base de datos y Redis.
+- **Tiempo real:** el navegador se conecta directo al backend por WebSocket con un token de 2 minutos (`/api/auth/socket-token`). Ese token no sirve para la API.
+
+Pasos:
+1. Despliega el backend (Easypanel o Dokploy) con un dominio propio, por ejemplo `https://api.tudominio.com`. En sus variables pon:
+   - `PUBLIC_BASE_URL=https://tu-app.vercel.app` (o tu dominio en Vercel). Los enlaces de seguimiento usan este dominio, y el tiempo real lo acepta automáticamente.
+   - `TRUST_PROXY=2`, para que el límite de intentos de inicio de sesión use la IP real del usuario y no la de Vercel.
+   - Opcional: `CORS_ORIGINS` con otros dominios del frontend, separados por coma (por ejemplo, los dominios de vista previa de Vercel).
+2. En Vercel: **Add New → Project**, importa este repositorio. `vercel.json` ya define la instalación, la compilación y la carpeta `client/dist`, así que no cambies nada.
+3. En **Settings → Environment Variables** de Vercel define `BACKEND_URL=https://api.tudominio.com` y vuelve a desplegar. Se usa al compilar (para el socket) y en el middleware (para la API).
+4. Abre `https://tu-app.vercel.app/healthz`: debe responder lo mismo que el backend.
 
 ## Preparado para crecer
 

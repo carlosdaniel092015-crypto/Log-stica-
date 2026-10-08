@@ -18,11 +18,21 @@ function clearRoleCache() {
   roleCache.at = 0;
 }
 
+const SOCKET_AUDIENCE = 'logistica-rd-socket';
+
 function signSession(user) {
   return jwt.sign({ sub: user.id, role: user.role_id, tv: user.token_version }, config.auth.jwtSecret, {
     expiresIn: `${config.auth.sessionHours}h`,
     audience: 'logistica-rd',
   });
+}
+
+/**
+ * Token corto (2 min) solo para abrir el socket de tiempo real cuando el frontend está en
+ * otro dominio (p. ej. Vercel) y la cookie no llega al backend. No sirve para la API.
+ */
+function signSocketToken(user) {
+  return jwt.sign({ sub: user.id, tv: user.token_version }, config.auth.jwtSecret, { expiresIn: '2m', audience: SOCKET_AUDIENCE });
 }
 
 /** `remember=false` crea una cookie de sesión del navegador (se borra al cerrarlo). */
@@ -47,11 +57,11 @@ function readToken(req) {
 }
 
 /** Resuelve el usuario de la sesión. Devuelve null si no es válida. */
-async function resolveSession(token) {
+async function resolveSession(token, { audience = 'logistica-rd' } = {}) {
   if (!token) return null;
   let payload;
   try {
-    payload = jwt.verify(token, config.auth.jwtSecret, { audience: 'logistica-rd' });
+    payload = jwt.verify(token, config.auth.jwtSecret, { audience });
   } catch {
     return null;
   }
@@ -113,7 +123,9 @@ const requireStaff = requireRole(...STAFF_ROLES);
 
 module.exports = {
   STAFF_ROLES,
+  SOCKET_AUDIENCE,
   signSession,
+  signSocketToken,
   setSessionCookie,
   clearSessionCookie,
   readToken,

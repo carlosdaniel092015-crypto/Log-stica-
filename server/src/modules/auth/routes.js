@@ -6,7 +6,7 @@ const { z } = require('zod');
 const { db, bool, now } = require('../../db');
 const { ah, unauthorized, badRequest, forbidden } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
-const { signSession, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
+const { signSession, signSocketToken, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
 const { rateLimitStore } = require('../../infra/redis');
 
@@ -56,6 +56,12 @@ router.post('/logout', (req, res) => {
 router.get('/me', (req, res) => {
   res.json({ user: req.user || null });
 });
+
+// Token corto para el socket cuando el frontend vive en otro dominio (Vercel).
+router.get('/socket-token', requireAuth, ah(async (req, res) => {
+  const user = await db('users').where({ id: req.user.id }).first('id', 'token_version');
+  res.set('Cache-Control', 'no-store').json({ token: signSocketToken(user) });
+}));
 
 router.put(
   '/me/password',
