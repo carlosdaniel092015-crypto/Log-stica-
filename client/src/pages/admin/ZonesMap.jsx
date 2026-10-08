@@ -82,6 +82,7 @@ export default function ZonesMap() {
               </span>
               <strong className="mono">{money(z.price, currency)}</strong>
               {editable && <button className="btn btn-sm btn-icon" onClick={(e) => { e.stopPropagation(); setEditing(z); }} aria-label={`Editar ${z.name}`}><Icon name="edit" /></button>}
+              {editable && <button className="btn btn-sm btn-icon btn-ghost" style={{ color: 'var(--danger)' }} disabled={busy} onClick={(e) => { e.stopPropagation(); if (window.confirm(`¿Eliminar la zona "${z.name}"? Los pedidos anteriores conservan su precio. Si solo quieres dejar de usarla, puedes desactivarla.`)) run(async () => { await api.del(`/api/zones/${z.id}`); zones.reload(true); }, 'Zona eliminada.'); }} aria-label={`Eliminar ${z.name}`}><Icon name="trash" /></button>}
             </div>
           ))}
         </div>
