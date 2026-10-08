@@ -12,6 +12,8 @@ const MOVEMENT_LABELS = {
   deliver: 'Entregado al cliente',
   restock: 'Reposición aprobada',
   reject_restore: 'Entrega rechazada (se devuelve al mensajero)',
+  deliver_warehouse: 'Entregado desde el almacén (el mensajero no lo tenía)',
+  reject_restore_warehouse: 'Entrega rechazada (se devuelve al almacén)',
   warehouse_adjust: 'Ajuste de almacén',
 };
 
@@ -31,6 +33,8 @@ async function lowStockProducts() {
 
 // Productos que cruzaron el mínimo dentro de una transacción; se avisa después de confirmarla.
 const lowStockQueue = new Set();
+// Entregas hechas sin inventario asignado al mensajero; se avisa a los administradores al confirmar.
+const shortageQueue = [];
 
 /** Avisa en tiempo real al personal y al mensajero afectado. */
 function broadcast(courierId, reason) {
@@ -38,6 +42,11 @@ function broadcast(courierId, reason) {
     const ids = [...lowStockQueue];
     lowStockQueue.clear();
     notifyLowStock(ids).catch(() => {});
+  }
+  if (shortageQueue.length) {
+    const list = shortageQueue.splice(0);
+    const { notify } = require('../notifications/service');
+    for (const x of list) notify({ audience: 'admin', title: `Pedido #${x.order_number}: entregado sin inventario asignado`, body: `El mensajero no tenía: ${x.detail}. Revisa la solicitud de entrega.`, url: '/admin/inventario?tab=requests' }).catch(() => {});
   }
   const payload = { courier_id: courierId || null, reason, at: now() };
   realtime.toStaff('inventory:updated', payload);
@@ -162,6 +171,7 @@ async function consumeForDelivery(trx, order, userId) {
   if (!items.length || !order.courier_id) return null;
   const ts = now();
   const requestId = uuid();
+  const baseNote = `Entrega del pedido #${order.order_number} a ${order.customer_name}`;
   await trx('inventory_requests').insert({
     id: requestId,
     request_number: await nextRequestNumber(trx),
@@ -169,16 +179,39 @@ async function consumeForDelivery(trx, order, userId) {
     order_id: order.id,
     kind: 'delivery',
     status: 'pending',
-    note: `Entrega del pedido #${order.order_number} a ${order.customer_name}`,
+    note: baseNote,
     created_at: ts,
     updated_at: ts,
   });
+  // La entrega nunca se bloquea por inventario: primero se descuenta lo que tiene el
+  // mensajero, lo que falte sale del almacén y, si tampoco alcanza, queda anotado como faltante.
+  const shortages = [];
   for (const it of items) {
-    await changeCourierStock(trx, order.courier_id, it.product_id, -it.quantity);
+    const need = Number(it.quantity);
+    const row = await trx('courier_stock').where({ courier_id: order.courier_id, product_id: it.product_id }).first();
+    const fromCourier = Math.min(need, Math.max(0, Number(row?.quantity) || 0));
+    if (fromCourier > 0) {
+      await changeCourierStock(trx, order.courier_id, it.product_id, -fromCourier);
+      await movement(trx, { type: 'deliver', productId: it.product_id, courierId: order.courier_id, orderId: order.id, requestId, courierDelta: -fromCourier, userId, note: `Pedido #${order.order_number}` });
+    }
+    const rest = need - fromCourier;
+    if (rest > 0) {
+      const p = await trx('products').where({ id: it.product_id }).first('name', 'warehouse_stock');
+      const fromWarehouse = Math.min(rest, Math.max(0, Number(p?.warehouse_stock) || 0));
+      if (fromWarehouse > 0) {
+        await changeWarehouseStock(trx, it.product_id, -fromWarehouse);
+        await movement(trx, { type: 'deliver_warehouse', productId: it.product_id, courierId: order.courier_id, orderId: order.id, requestId, warehouseDelta: -fromWarehouse, userId, note: `Pedido #${order.order_number}: el mensajero no lo tenía asignado` });
+      }
+      shortages.push({ name: p?.name || it.product_name, quantity: rest, fromWarehouse, missing: rest - fromWarehouse });
+    }
     await trx('inventory_request_items').insert({ id: uuid(), request_id: requestId, product_id: it.product_id, quantity_requested: it.quantity, quantity_approved: null });
-    await movement(trx, { type: 'deliver', productId: it.product_id, courierId: order.courier_id, orderId: order.id, requestId, courierDelta: -it.quantity, userId, note: `Pedido #${order.order_number}` });
   }
-  return requestId;
+  if (shortages.length) {
+    const detail = shortages.map((x) => `${x.quantity} ${x.name}${x.fromWarehouse ? ` (${x.fromWarehouse} del almacén)` : ''}${x.missing ? ` (${x.missing} sin existencia)` : ''}`).join(', ');
+    await trx('inventory_requests').where({ id: requestId }).update({ note: `${baseNote}. ⚠ El mensajero no tenía asignado: ${detail}.`.slice(0, 500) });
+    shortageQueue.push({ order_number: order.order_number, courier_id: order.courier_id, detail });
+  }
+  return { requestId, shortages };
 }
 
 /** El mensajero solicita más inventario (cantidades solicitadas). */
@@ -245,10 +278,17 @@ async function rejectRequest(requestId, { note } = {}, req) {
     if (r.status !== 'pending') throw conflict('La solicitud ya fue revisada.');
     courierId = r.courier_id;
     if (r.kind === 'delivery') {
-      const lines = await trx('inventory_request_items').where({ request_id: r.id });
-      for (const line of lines) {
-        await changeCourierStock(trx, r.courier_id, line.product_id, line.quantity_requested);
-        await movement(trx, { type: 'reject_restore', productId: line.product_id, courierId: r.courier_id, orderId: r.order_id, requestId: r.id, courierDelta: line.quantity_requested, userId: req.user.id, note });
+      // Cada unidad vuelve a donde salió: al mensajero o al almacén.
+      const moves = await trx('inventory_movements').where({ request_id: r.id }).whereIn('type', ['deliver', 'deliver_warehouse']);
+      for (const m of moves) {
+        if (m.type === 'deliver' && m.courier_delta < 0) {
+          await changeCourierStock(trx, r.courier_id, m.product_id, -m.courier_delta);
+          await movement(trx, { type: 'reject_restore', productId: m.product_id, courierId: r.courier_id, orderId: r.order_id, requestId: r.id, courierDelta: -m.courier_delta, userId: req.user.id, note });
+        }
+        if (m.type === 'deliver_warehouse' && m.warehouse_delta < 0) {
+          await changeWarehouseStock(trx, m.product_id, -m.warehouse_delta);
+          await movement(trx, { type: 'reject_restore_warehouse', productId: m.product_id, courierId: r.courier_id, orderId: r.order_id, requestId: r.id, warehouseDelta: -m.warehouse_delta, userId: req.user.id, note });
+        }
       }
     }
     await trx('inventory_request_items').where({ request_id: r.id }).update({ quantity_approved: 0 });

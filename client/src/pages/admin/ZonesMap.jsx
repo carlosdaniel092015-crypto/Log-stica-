@@ -35,7 +35,7 @@ export default function ZonesMap() {
   const editable = can(user, 'zones.manage');
   const [busy, run] = useAction();
   const loadSuggested = async () => {
-    const r = await run(() => api.post('/api/zones/load-suggested'), 'Zonas sugeridas creadas. Ajusta los precios a los tuyos.');
+    const r = await run(() => api.post('/api/zones/load-suggested'), 'Zonas sugeridas listas. Ajusta los precios a los tuyos.');
     if (r) zones.reload(true);
   };
 
@@ -77,6 +77,7 @@ export default function ZonesMap() {
               <span className="color-dot" style={{ background: z.active ? z.color : 'var(--border-strong)', width: 14, height: 14 }} />
               <span className="spacer" style={{ minWidth: 0 }}>
                 <span className="bold" style={{ display: 'block' }}>{z.name}</span>
+                {z.covers === false && <span className="tiny" style={{ color: 'var(--warning)', fontWeight: 600, display: 'block' }}>⚠ No cubre ningún lugar</span>}
                 <span className="tiny muted">{ZONE_KINDS[z.kind]} · {AREA[z.geometry_type]} · {z.active ? 'Activa' : 'Inactiva'}</span>
               </span>
               <strong className="mono">{money(z.price, currency)}</strong>

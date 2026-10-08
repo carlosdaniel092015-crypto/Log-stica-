@@ -492,6 +492,7 @@ async function changeStatus(orderId, to, req, extra = {}) {
     if (extra.proof.signature && settings.proof_signature_enabled) signaturePath = saveDataUrl(extra.proof.signature, orderId, 'signature');
   }
 
+  let consumed = null;
   await db.transaction(async (trx) => {
     const patch = { status: to, updated_at: ts };
     if (to === 'en_route') {
@@ -536,7 +537,7 @@ async function changeStatus(orderId, to, req, extra = {}) {
     // Entregado o cancelado: el enlace del cliente vence de inmediato (seguridad del mensajero).
     if (FINAL_STATUSES.includes(to)) await revokeLinks(trx, orderId);
     // Entregado: se descuenta el inventario del mensajero y se crea la solicitud para aprobación.
-    if (to === 'delivered') await inventory.consumeForDelivery(trx, order, req.user?.id);
+    if (to === 'delivered') consumed = await inventory.consumeForDelivery(trx, order, req.user?.id);
     if (patch.courier_id === null && order.courier_id) {
       await trx('delivery_assignments').where({ order_id: orderId, courier_id: order.courier_id }).whereNull('unassigned_at').update({ unassigned_at: ts, reason: 'Devuelto a despacho' });
     }
@@ -552,6 +553,8 @@ async function changeStatus(orderId, to, req, extra = {}) {
   });
 
   events.orderChanged(orderId, { type: 'status', from: order.status, to });
+  // Avisos de inventario (faltantes, mínimo de almacén) después de confirmar la transacción.
+  if (consumed) inventory.broadcast(order.courier_id, 'delivered');
   return getOrderDetail(orderId);
 }
 

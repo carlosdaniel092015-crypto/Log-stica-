@@ -43,7 +43,8 @@ export default function Rates() {
   const loadSuggested = async () => {
     const r = await run(() => api.post('/api/zones/load-suggested'));
     if (!r) return;
-    toast(r.created ? `Se crearon ${r.created} zonas con tarifas sugeridas. Ajusta los precios a los tuyos.` : 'Ya tenías todas las zonas sugeridas.', { type: 'success' });
+    const parts = [r.created && `se crearon ${r.created} zonas`, r.repaired && `se completaron ${r.repaired} zonas que no cubrían ningún lugar`].filter(Boolean);
+    toast(parts.length ? `Listo: ${parts.join(' y ')}. Ajusta los precios a los tuyos.` : 'Ya tenías todas las zonas sugeridas.', { type: 'success' });
     zones.reload(true);
     allZones.reload(true);
   };
@@ -80,6 +81,12 @@ export default function Rates() {
           )}
         </div>
       </div>
+      {editable && allZones.data?.some((z) => z.active && z.covers === false) && (
+        <div className="banner warning" style={{ marginBottom: 12 }}>
+          <span className="banner-icon"><Icon name="alert" size={18} /></span>
+          <div className="spacer"><strong>Hay zonas que no cubren ningún lugar</strong> ({allZones.data.filter((z) => z.active && z.covers === false).map((z) => z.name).join(', ')}). Edítalas y elige su provincia, municipio o sector, o dibuja un área; si no, los pedidos de esas direcciones quedarán "Sin zona".</div>
+        </div>
+      )}
       {editable && allZones.data?.length === 0 && (
         <div className="banner info" style={{ marginBottom: 12 }}>
           <span className="banner-icon"><Icon name="tag" size={18} /></span>
@@ -111,7 +118,10 @@ export default function Rates() {
               <tbody>
                 {(zones.data || []).map((z) => (
                   <tr key={z.id} style={{ opacity: z.active ? 1 : 0.55 }}>
-                    <td className="bold"><span className="row" style={{ gap: 8 }}><span className="color-dot" style={{ background: z.color }} />{z.name}</span></td>
+                    <td className="bold">
+                      <span className="row" style={{ gap: 8 }}><span className="color-dot" style={{ background: z.color }} />{z.name}</span>
+                      {z.covers === false && <span className="tiny" style={{ color: 'var(--warning)', fontWeight: 600, display: 'block', marginTop: 2 }} title="Edítala y elige su provincia/municipio/sector o dibuja un área">⚠ No cubre ningún lugar</span>}
+                    </td>
                     <td>{ZONE_KINDS[z.kind]}</td>
                     <td className="small">{z.province_name || '—'}</td>
                     <td className="small">{z.municipality_name || '—'}</td>

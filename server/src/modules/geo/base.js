@@ -82,16 +82,27 @@ async function loadSuggestedZones(trx = db, userId = null) {
     trx('provinces').select('id', 'name'),
     trx('municipalities').select('id', 'name', 'province_id'),
     trx('sectors').select('id', 'name', 'municipality_id'),
-    trx('delivery_zones').select('name'),
+    trx('delivery_zones').select('id', 'name', 'geometry_type', 'province_id', 'municipality_id', 'sector_id'),
   ]);
   const find = (list, name, extra = () => true) => list.find((x) => key(x.name) === key(name) && extra(x));
   const ts = now();
   let created = 0;
+  let repaired = 0;
   for (const z of SUGGESTED_ZONES) {
-    if (zones.some((x) => key(x.name) === key(z.name))) continue;
     const province = z.province ? find(provinces, z.province) : null;
     const municipality = z.municipality ? find(municipalities, z.municipality, (m) => !province || m.province_id === province.id) : null;
     const sector = z.sector ? find(sectors, z.sector, (s) => !municipality || s.municipality_id === municipality.id) : null;
+    const same = zones.find((x) => key(x.name) === key(z.name));
+    if (same) {
+      // Zona con el mismo nombre que no cubre nada (creada cuando no había provincias):
+      // se le asigna su provincia/municipio/sector y se conserva su precio.
+      const unlinked = same.geometry_type === 'none' && !same.province_id && !same.municipality_id && !same.sector_id;
+      if (unlinked && !z.circle) {
+        await trx('delivery_zones').where({ id: same.id }).update({ kind: z.kind, province_id: province?.id || null, municipality_id: municipality?.id || null, sector_id: sector?.id || null, updated_at: now() });
+        repaired++;
+      }
+      continue;
+    }
     const id = uuid();
     await trx('delivery_zones').insert({
       id,
@@ -114,7 +125,7 @@ async function loadSuggestedZones(trx = db, userId = null) {
     await trx('delivery_rates').insert({ id: uuid(), zone_id: id, price: z.price, currency: 'DOP', created_by: userId, effective_from: ts, created_at: ts });
     created++;
   }
-  return { created };
+  return { created, repaired };
 }
 
 module.exports = { loadBaseGeography, loadSuggestedZones, SUGGESTED_ZONES, BASE_SOURCE: base.source };

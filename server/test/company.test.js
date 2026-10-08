@@ -110,3 +110,19 @@ test('división territorial completa de RD y tarifas sugeridas', async () => {
   const zones = (await admin.get('/api/zones')).body;
   assert.ok(zones.some((z) => z.name === 'Santo Domingo Oeste' && z.price === 250));
 });
+
+test('las zonas sin provincia/municipio/sector se marcan y "tarifas sugeridas" las repara', async () => {
+  const haina = (await admin.get('/api/zones')).body.find((z) => z.name === 'Haina');
+  await db('delivery_zones').where({ id: haina.id }).update({ province_id: null, municipality_id: null, sector_id: null, geometry_type: 'none', polygon: null, center_lat: null, center_lng: null, radius_m: null });
+  const broken = (await admin.get('/api/zones')).body.find((z) => z.name === 'Haina');
+  assert.equal(broken.covers, false);
+  const before = (await admin.post('/api/zones/quote').send({ lat: 18.4167, lng: -70.0333 })).body;
+  assert.notEqual(before.zone?.name, 'Haina');
+
+  const r = (await admin.post('/api/zones/load-suggested')).body;
+  assert.ok(r.repaired >= 1);
+  const fixed = (await admin.get('/api/zones')).body.find((z) => z.name === 'Haina');
+  assert.equal(fixed.covers, true);
+  assert.equal(fixed.municipality_name, 'Bajos de Haina');
+  assert.equal(fixed.price, haina.price, 'conserva su precio');
+});
