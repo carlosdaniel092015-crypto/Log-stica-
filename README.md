@@ -189,6 +189,10 @@ Pasos:
 4. **Deploy**. Al arrancar, la app aplica las migraciones en Supabase y crea el primer administrador (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). Con `LOAD_DEMO_DATA=true` carga los datos de ejemplo, solo si la base está vacía.
 5. Comprueba `https://tu-dominio/healthz`: debe responder `{"ok":true,"database":true,"redis":true}`.
 
+Cada variable va sola en su línea, **sin espacios ni comentarios después del valor**. Las contraseñas de Postgres y Redis conviene que sean solo letras y números. La app avisa con un mensaje claro si `PUBLIC_BASE_URL` o `ADMIN_EMAIL` no son válidos.
+
+Los servicios internos se buscan por nombres únicos (`entregas-db`, `entregas-redis`, `entregas-meta`). Así no se confunden con los de otros proyectos en la red compartida de Dokploy o Easypanel, por ejemplo con otro servicio llamado `redis`.
+
 Supabase Studio no tiene inicio de sesión propio, así que **no se publica en internet**. Para usarlo, abre un túnel SSH y entra a `http://localhost:3001`:
 
 ```bash
