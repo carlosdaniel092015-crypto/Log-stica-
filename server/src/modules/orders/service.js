@@ -203,15 +203,18 @@ async function findOrCreateCustomer(trx, input, req) {
     return c;
   }
   const data = input.customer;
-  if (!data?.name || !data?.phone) throw badRequest('Indica el nombre y teléfono del cliente.');
-  const existing = await trx('customers').where({ phone: data.phone }).first();
-  if (existing) return existing;
+  if (!data?.name) throw badRequest('Indica el nombre del cliente.');
+  // Sin teléfono no se puede reconocer a un cliente existente: se registra uno nuevo.
+  if (data.phone) {
+    const existing = await trx('customers').where({ phone: data.phone }).first();
+    if (existing) return existing;
+  }
   const ts = now();
   const c = {
     id: uuid(),
     name: data.name,
-    phone: data.phone,
-    whatsapp: data.whatsapp || data.phone,
+    phone: data.phone || null,
+    whatsapp: data.whatsapp || data.phone || null,
     email: data.email || null,
     notes: null,
     active: true,

@@ -14,7 +14,10 @@ const router = express.Router();
 
 const customerSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  phone: z.string().trim().min(7).max(40),
+  // Opcional: si se escribe, debe tener al menos 7 dígitos.
+  phone: z.string().trim().max(40).nullable().optional()
+    .transform((v) => v || null)
+    .refine((v) => !v || v.replace(/\D/g, '').length >= 7, 'teléfono no válido'),
   whatsapp: z.string().trim().max(40).nullable().optional(),
   email: z.string().trim().toLowerCase().email().nullable().optional().or(z.literal('')),
   notes: z.string().max(2000).nullable().optional(),
@@ -130,9 +133,9 @@ router.get('/:id', requirePermission('customers.manage'), ah(async (req, res) =>
 
 router.post('/', requirePermission('customers.manage'), validate(customerSchema.extend({ address: addressSchema.optional() })), ah(async (req, res) => {
   const { address, ...b } = req.body;
-  if (await db('customers').where({ phone: b.phone }).first()) throw conflict('Ya existe un cliente con ese teléfono.');
+  if (b.phone && (await db('customers').where({ phone: b.phone }).first())) throw conflict('Ya existe un cliente con ese teléfono.');
   const ts = now();
-  const c = { id: uuid(), ...b, email: b.email || null, whatsapp: b.whatsapp || b.phone, active: true, created_at: ts, updated_at: ts };
+  const c = { id: uuid(), ...b, email: b.email || null, whatsapp: b.whatsapp || b.phone || null, active: true, created_at: ts, updated_at: ts };
   await db('customers').insert(c);
   if (address) await saveAddress(c.id, address);
   await audit(req, { action: 'customer.create', entity: 'customer', entityId: c.id, newValue: b });

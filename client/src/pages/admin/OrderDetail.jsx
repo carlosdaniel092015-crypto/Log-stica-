@@ -168,7 +168,7 @@ export default function OrderDetail() {
             <div className="card-title"><h3>Cliente y entrega</h3></div>
             <dl className="kv card-body">
               <dt>Cliente</dt><dd className="bold"><Link to={`/admin/clientes/${order.customer_id}`} style={{ color: 'inherit' }}>{order.customer_name}</Link></dd>
-              <dt>Teléfono</dt><dd className="row-wrap mono">{order.phone} <a className="btn btn-sm btn-icon" href={`tel:${order.phone}`} aria-label="Llamar"><Icon name="phone" /></a> <a className="btn btn-sm btn-icon" href={whatsappUrl(order.customer_whatsapp || order.phone)} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon name="whatsapp" /></a></dd>
+              <dt>Teléfono</dt><dd className="row-wrap mono">{order.phone || <span className="muted">Sin teléfono</span>} {order.phone && <a className="btn btn-sm btn-icon" href={`tel:${order.phone}`} aria-label="Llamar"><Icon name="phone" /></a>} {(order.customer_whatsapp || order.phone) && <a className="btn btn-sm btn-icon" href={whatsappUrl(order.customer_whatsapp || order.phone)} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon name="whatsapp" /></a>}</dd>
               <dt>Dirección</dt><dd>{order.address}</dd>
               <dt>Referencia</dt><dd>{order.reference || '—'}</dd>
               <dt>Sector</dt><dd>{[order.sector_name, order.municipality_name, order.province_name].filter(Boolean).join(', ') || '—'}</dd>

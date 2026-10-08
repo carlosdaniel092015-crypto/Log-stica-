@@ -260,7 +260,7 @@ function DeliveryCard({ order, active, distanceM, onAction, onMap, onNavigate, o
         </div>
       </div>
       <div className="delivery-meta">
-        <div><span className="meta-label">Teléfono</span><span className="mono">{order.phone}</span></div>
+        <div><span className="meta-label">Teléfono</span><span className="mono">{order.phone || '—'}</span></div>
         <div><span className="meta-label">Distancia</span>{distanceM != null ? fmtDistance(distanceM) : '—'}</div>
         <div><span className="meta-label">Envío</span>{money(order.delivery_fee, currency)}</div>
         <div><span className="meta-label">Pago</span>{PAYMENT_METHODS[order.payment_method]}</div>
@@ -279,8 +279,8 @@ function DeliveryCard({ order, active, distanceM, onAction, onMap, onNavigate, o
       <div className="delivery-actions">
         <button className="btn" onClick={() => onMap(order)}><Icon name="map" />VER MAPA</button>
         <button className="btn" onClick={() => onNavigate(order)}><Icon name="navigation" />INICIAR RUTA</button>
-        <a className="btn" href={`tel:${order.phone}`}><Icon name="phone" />LLAMAR</a>
-        <a className="btn btn-wa" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>
+        {order.phone && <a className="btn" href={`tel:${order.phone}`}><Icon name="phone" />LLAMAR</a>}
+        {(order.customer_whatsapp || order.phone) && <a className="btn btn-wa" href={whatsappUrl(order.customer_whatsapp || order.phone, `Hola ${order.customer_name.split(' ')[0]}, soy el mensajero de tu pedido #${order.order_number}.`)} target="_blank" rel="noreferrer"><Icon name="whatsapp" />WHATSAPP</a>}
       </div>
       <div className="share-row">
         <button className="btn btn-share" onClick={() => onShare(order)}><Icon name="share" /> COMPARTIR SEGUIMIENTO</button>

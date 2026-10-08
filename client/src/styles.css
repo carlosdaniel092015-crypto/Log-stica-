@@ -334,7 +334,7 @@ gmp-place-autocomplete { width: 100%; }
 .delivery-card { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .delivery-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 35%, transparent); }
 .delivery-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 0.86rem; }
-.delivery-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.delivery-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
 .delivery-actions .btn { flex-direction: column; gap: 2px; font-size: 0.72rem; min-height: 54px; padding: 6px 4px; }
 .status-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; font-weight: 650; }
 .status-bar.on { background: color-mix(in srgb, var(--success) 14%, var(--surface)); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); }
