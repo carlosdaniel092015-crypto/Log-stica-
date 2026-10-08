@@ -22,6 +22,6 @@ exports.up = async function up(knex) {
   }
 };
 
-exports.down = async function down(knex) {
-  await knex('roles').whereIn('id', ROLES.map((r) => r.id)).del();
+exports.down = async function down() {
+  // Los roles se eliminan junto con su tabla en la migración inicial.
 };

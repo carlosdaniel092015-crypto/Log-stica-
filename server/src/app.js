@@ -11,7 +11,7 @@ const { HttpError } = require('./utils/http');
 const { authOptional, requireStaff } = require('./middleware/auth');
 const { getSettings, publicSettings } = require('./modules/settings/service');
 const { getVapid } = require('./modules/notifications/push');
-const { STATUS_LABELS } = require('./modules/orders/statuses');
+const { STATUS_LABELS, STAFF_TRANSITIONS } = require('./modules/orders/statuses');
 const { COURIER_STATUS_LABELS } = require('./modules/couriers/service');
 
 function createApp() {
@@ -86,6 +86,7 @@ function createApp() {
         google: { browserKey: config.google.browserKey, mapId: config.google.mapId },
         vapidPublicKey: vapid.publicKey,
         statuses: STATUS_LABELS,
+        transitions: STAFF_TRANSITIONS,
         courierStatuses: COURIER_STATUS_LABELS,
       });
     } catch (err) {

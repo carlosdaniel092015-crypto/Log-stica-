@@ -45,7 +45,8 @@ let cacheAt = 0;
 async function getSettings() {
   if (cache && Date.now() - cacheAt < 10_000) return cache;
   const rows = await db('settings').select('key', 'value');
-  const stored = Object.fromEntries(rows.map((r) => [r.key, json(r.value)]));
+  // Solo claves conocidas: otras filas (p. ej. claves VAPID privadas) nunca se exponen.
+  const stored = Object.fromEntries(rows.filter((r) => r.key in DEFAULTS).map((r) => [r.key, json(r.value)]));
   cache = { ...DEFAULTS, ...stored };
   cacheAt = Date.now();
   return cache;

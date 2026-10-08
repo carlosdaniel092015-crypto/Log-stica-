@@ -76,10 +76,9 @@ router.post(
     };
     await db.transaction(async (trx) => {
       await trx('users').insert(user);
-      // Si el cliente ya existía (pedidos previos con ese teléfono) se vincula a la cuenta.
-      const existing = await trx('customers').where({ phone: req.body.phone }).whereNull('user_id').first();
-      if (existing) await trx('customers').where({ id: existing.id }).update({ user_id: user.id, email: req.body.email, updated_at: ts });
-      else await trx('customers').insert({ id: uuid(), user_id: user.id, name: user.name, phone: user.phone, whatsapp: user.phone, email: user.email, active: true, created_at: ts, updated_at: ts });
+      // No se vinculan pedidos previos por teléfono automáticamente: sin verificar el número,
+      // cualquiera podría ver pedidos ajenos. El personal puede vincularlos desde el panel.
+      await trx('customers').insert({ id: uuid(), user_id: user.id, name: user.name, phone: user.phone, whatsapp: user.phone, email: user.email, active: true, created_at: ts, updated_at: ts });
       await audit({ user, ip: req.ip, userAgent: req.get('user-agent') }, { action: 'auth.register', entity: 'user', entityId: user.id }, trx);
     });
     setSessionCookie(res, signSession(user));

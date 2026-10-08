@@ -130,6 +130,28 @@ router.patch('/:id/active', requirePermission('customers.manage'), validate(z.ob
   res.json({ ok: true });
 }));
 
+/**
+ * Vincula el historial de un cliente (pedidos y direcciones) a la cuenta de un cliente registrado.
+ * Lo hace el personal después de verificar la identidad del cliente.
+ */
+router.post('/:id/link-account', requirePermission('customers.manage'), validate(z.object({ email: z.string().trim().toLowerCase().email() })), ah(async (req, res) => {
+  const source = await db('customers').where({ id: req.params.id }).first();
+  if (!source) throw notFound();
+  const user = await db('users').where({ email: req.body.email, role_id: 'customer' }).first();
+  if (!user) throw notFound('No existe una cuenta de cliente con ese correo.');
+  const target = await db('customers').where({ user_id: user.id }).first();
+  if (!target) throw notFound('La cuenta no tiene perfil de cliente.');
+  if (target.id === source.id) return res.json(mapCustomer(target));
+  await db.transaction(async (trx) => {
+    const ts = now();
+    await trx('orders').where({ customer_id: source.id }).update({ customer_id: target.id, updated_at: ts });
+    await trx('customer_addresses').where({ customer_id: source.id }).update({ customer_id: target.id, is_default: false, updated_at: ts });
+    await trx('customers').where({ id: source.id }).update({ active: false, notes: `Vinculado a la cuenta ${user.email}`, updated_at: ts });
+    await audit(req, { action: 'customer.link_account', entity: 'customer', entityId: target.id, oldValue: { customer_id: source.id }, newValue: { customer_id: target.id, email: user.email } }, trx);
+  });
+  res.json(mapCustomer(await db('customers').where({ id: target.id }).first()));
+}));
+
 router.post('/:id/addresses', requirePermission('customers.manage'), validate(addressSchema), ah(async (req, res) => {
   const c = await db('customers').where({ id: req.params.id }).first();
   if (!c) throw notFound();

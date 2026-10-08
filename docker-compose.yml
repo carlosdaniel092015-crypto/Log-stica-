@@ -1,0 +1,29 @@
+# Despliegue de referencia: aplicación + PostgreSQL.
+# Coloca un proxy con HTTPS (Nginx, Caddy, Traefik o el balanceador de tu proveedor) delante.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: logistica
+      POSTGRES_USER: logistica
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DB_CLIENT: pg
+      DATABASE_URL: postgres://logistica:${POSTGRES_PASSWORD}@db:5432/logistica
+      UPLOADS_DIR: /app/server/data/uploads
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/app/server/data
+    depends_on:
+      - db
+    restart: unless-stopped
+volumes:
+  pgdata:
+  uploads:

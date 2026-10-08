@@ -87,11 +87,13 @@ function approxArea(zone) {
 function zoneMatches(zone, point) {
   const { lat, lng } = point;
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
-  if (zone.geometry_type === 'polygon' && zone.polygon) {
-    return hasCoords && pointInPolygon(lat, lng, zone.polygon) ? 'geometry' : null;
+  // Con coordenadas manda el área dibujada; sin coordenadas (dirección escrita a mano)
+  // se recurre a la provincia/municipio/sector de la zona.
+  if (hasCoords && zone.geometry_type === 'polygon' && zone.polygon) {
+    return pointInPolygon(lat, lng, zone.polygon) ? 'geometry' : null;
   }
-  if (zone.geometry_type === 'circle' && zone.center_lat != null && zone.radius_m) {
-    return hasCoords && distanceMeters(lat, lng, zone.center_lat, zone.center_lng) <= zone.radius_m ? 'geometry' : null;
+  if (hasCoords && zone.geometry_type === 'circle' && zone.center_lat != null && zone.radius_m) {
+    return distanceMeters(lat, lng, zone.center_lat, zone.center_lng) <= zone.radius_m ? 'geometry' : null;
   }
   if (zone.kind === 'sector' && zone.sector_id && zone.sector_id === point.sector_id) return 'administrative';
   if (zone.kind === 'municipality' && zone.municipality_id && zone.municipality_id === point.municipality_id) return 'administrative';

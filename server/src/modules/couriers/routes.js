@@ -75,7 +75,12 @@ self.post('/location', validate(z.object({
 
 self.get('/orders', ah(async (req, res) => {
   const scope = req.query.scope === 'history' ? 'delivered,failed,customer_unavailable,rescheduled,cancelled' : 'assigned,en_route,arriving,arrived,failed,customer_unavailable';
-  const list = await orders.listOrders({ status: scope, limit: req.query.scope === 'history' ? 50 : 200 }, { courierId: req.user.courierId });
+  let list = await orders.listOrders({ status: scope, limit: req.query.scope === 'history' ? 50 : 200 }, { courierId: req.user.courierId });
+  if (req.query.scope !== 'history') {
+    // Los intentos fallidos se pueden reintentar durante 24 h; luego los gestiona la oficina.
+    const cutoff = Date.now() - 24 * 3600_000;
+    list = list.filter((o) => !['failed', 'customer_unavailable'].includes(o.status) || new Date(o.updated_at).getTime() > cutoff);
+  }
   res.json(list.map(orders.courierView));
 }));
 
