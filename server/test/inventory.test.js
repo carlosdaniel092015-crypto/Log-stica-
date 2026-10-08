@@ -69,19 +69,40 @@ test('al entregar se reduce el inventario y se crea una solicitud que el adminis
   assert.equal(outcomes.find((o) => o.id === order.id).outcome, 'success');
 });
 
-test('sin inventario suficiente no se puede marcar entregado', async () => {
+test('sin inventario suficiente la entrega no se bloquea: lo que falta sale del almacén', async () => {
+  // Juan tiene 4 y el almacén 4; el pedido lleva 9 → 4 del mensajero, 4 del almacén y 1 faltante.
   const order = await newOrder(9, 'Cliente Sin Stock');
   await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'en_route' });
   const res = await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'delivered', proof: { receiver_name: 'X' } });
-  assert.equal(res.status, 409);
-  assert.match(res.body.error, /Inventario insuficiente/);
-  assert.equal((await admin.get(`/api/orders/${order.id}`)).body.status, 'en_route', 'el pedido no cambia');
-  assert.equal(await stockOf(juan, product.id), 4, 'el inventario no cambia');
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal((await admin.get(`/api/orders/${order.id}`)).body.status, 'delivered');
+  assert.equal(await stockOf(juan, product.id), 0);
+  const p = (await admin.get('/api/inventory/products')).body.find((x) => x.id === product.id);
+  assert.equal(p.warehouse_stock, 0);
 
+  const req = (await admin.get('/api/inventory/requests?status=pending')).body.find((r) => r.order_id === order.id);
+  assert.match(req.note, /no tenía asignado: 5 Producto prueba \(4 del almacén\) \(1 sin existencia\)/);
+  const moves = (await admin.get(`/api/inventory/movements?courier_id=${juanId}`)).body.filter((m) => m.request_id === req.id);
+  assert.ok(moves.some((m) => m.type === 'deliver' && m.courier_delta === -4));
+  assert.ok(moves.some((m) => m.type === 'deliver_warehouse' && m.warehouse_delta === -4));
+  await new Promise((r) => setTimeout(r, 50));
+  const notes = await db('notifications').where('title', 'like', `%#${order.order_number}%sin inventario%`);
+  assert.ok(notes.length >= 1, 'se avisa a los administradores');
+
+  // Al rechazar, cada unidad vuelve a donde salió.
+  assert.equal((await admin.post(`/api/inventory/requests/${req.id}/reject`).send({ note: 'Revisar' })).status, 200);
+  assert.equal(await stockOf(juan, product.id), 4);
+  assert.equal((await admin.get('/api/inventory/products')).body.find((x) => x.id === product.id).warehouse_stock, 4);
+});
+
+test('el no entregado se reporta en rojo', async () => {
+  const order = await newOrder(1, 'Cliente No Estaba');
+  await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'en_route' });
   const failed = await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'failed', note: 'No estaba' });
   assert.equal(failed.status, 200);
   const outcomes = (await admin.get('/api/inventory/outcomes')).body;
-  assert.equal(outcomes.find((o) => o.id === order.id).outcome, 'failure', 'el no entregado se reporta en rojo');
+  assert.equal(outcomes.find((o) => o.id === order.id).outcome, 'failure');
+  assert.equal(await stockOf(juan, product.id), 4, 'no entregado no descuenta inventario');
 });
 
 test('rechazar una entrega devuelve el inventario al mensajero', async () => {

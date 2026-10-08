@@ -119,6 +119,37 @@ export default function OrderForm({ onClose, onCreated }) {
     }
   };
 
+  // ¿El mensajero elegido tiene los productos del pedido? (solo con permiso de inventario)
+  const canInventory = can(user, 'inventory.manage');
+  const [courierStock, setCourierStock] = useState(null);
+  const [assigningStock, setAssigningStock] = useState(false);
+  useEffect(() => {
+    setCourierStock(null);
+    if (!canInventory || !form.courier_id) return;
+    api.get(`/api/inventory/couriers/${form.courier_id}`).then((r) => setCourierStock(r.stock)).catch(() => {});
+  }, [canInventory, form.courier_id]);
+  const courierShortages = useMemo(() => {
+    if (!courierStock) return [];
+    const need = new Map();
+    for (const i of validItems) need.set(i.product_id, (need.get(i.product_id) || 0) + Math.trunc(Number(i.quantity)));
+    return [...need].map(([id, qty]) => {
+      const have = courierStock.find((s) => s.product_id === id)?.quantity || 0;
+      return { product_id: id, name: activeProducts.find((p) => p.id === id)?.name || 'Producto', missing: qty - have };
+    }).filter((x) => x.missing > 0);
+  }, [courierStock, validItems, activeProducts]);
+  const assignMissing = async () => {
+    setAssigningStock(true);
+    try {
+      const r = await api.post(`/api/inventory/couriers/${form.courier_id}/assign`, { items: courierShortages.map((x) => ({ product_id: x.product_id, quantity: x.missing })), note: 'Para un pedido nuevo' });
+      setCourierStock(r.stock);
+      toast('Inventario asignado al mensajero.', { type: 'success' });
+    } catch (err) {
+      toast(err.message, { type: 'error' });
+    } finally {
+      setAssigningStock(false);
+    }
+  };
+
   const total = useMemo(() => {
     const f = overrideFee ? Number(fee) || 0 : quote?.fee || 0;
     return (validItems.length ? itemsSubtotal : Number(form.subtotal) || 0) + f;
@@ -296,6 +327,13 @@ export default function OrderForm({ onClose, onCreated }) {
                   {(couriers.data || []).map((c) => <option key={c.id} value={c.id}>{c.name} — {c.status_label}{c.pending_count ? ` (${c.pending_count} pendientes)` : ''}</option>)}
                 </select>
               </Field>
+              {courierShortages.length > 0 && (
+                <div className="alert alert-warning full">
+                  <div className="bold">El mensajero no tiene todo este inventario</div>
+                  <div className="small">Le falta: {courierShortages.map((x) => `${x.missing} ${x.name}`).join(', ')}. Si lo entrega así, lo que falte se descontará del almacén.</div>
+                  <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} disabled={assigningStock} onClick={assignMissing}>Asignarle lo que falta desde el almacén</button>
+                </div>
+              )}
               <Field label="Notas" className="full"><textarea className="textarea" value={form.notes} onChange={set('notes')} maxLength={2000} placeholder="Instrucciones para el mensajero, horario, etc." /></Field>
             </div>
           </section>
