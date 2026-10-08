@@ -29,8 +29,11 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-1}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       DB_CLIENT: pg
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # Nombres únicos (entregas-db / entregas-redis): en Dokploy y Easypanel la red es compartida
+      # y otro proyecto con un servicio "redis" o "supabase-db" se confundiría con estos.
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@entregas-db:5432/postgres
+      REDIS_URL: redis://entregas-redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       UPLOADS_DIR: /app/server/data/uploads
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
@@ -69,6 +72,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
     volumes:
       - supabase-db-data:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases: [entregas-db]
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
       interval: 5s
@@ -81,12 +87,15 @@ services:
     restart: unless-stopped
     environment:
       PG_META_PORT: 8080
-      PG_META_DB_HOST: supabase-db
+      PG_META_DB_HOST: entregas-db
       PG_META_DB_PORT: 5432
       PG_META_DB_NAME: postgres
       PG_META_DB_USER: supabase_admin
       PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
       CRYPTO_KEY: ${PG_META_CRYPTO_KEY:?Define PG_META_CRYPTO_KEY}
+    networks:
+      default:
+        aliases: [entregas-meta]
     depends_on:
       supabase-db:
         condition: service_healthy
@@ -100,9 +109,9 @@ services:
       - "127.0.0.1:${STUDIO_PORT:-3001}:3000"
     environment:
       HOSTNAME: 0.0.0.0
-      STUDIO_PG_META_URL: http://supabase-meta:8080
+      STUDIO_PG_META_URL: http://entregas-meta:8080
       PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
-      POSTGRES_HOST: supabase-db
+      POSTGRES_HOST: entregas-db
       POSTGRES_PORT: 5432
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -118,6 +127,9 @@ services:
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Define REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     volumes:
       - redis-data:/data
+    networks:
+      default:
+        aliases: [entregas-redis]
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
       interval: 5s

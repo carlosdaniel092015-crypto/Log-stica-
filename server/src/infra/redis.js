@@ -14,7 +14,7 @@ let client = null;
 function getRedis() {
   if (!config.redisUrl) return null;
   if (!client) {
-    client = createClient({ url: config.redisUrl, socket: { reconnectStrategy: (n) => Math.min(n * 200, 5000) } });
+    client = createClient({ url: config.redisUrl, password: config.redisPassword || undefined, socket: { reconnectStrategy: (n) => Math.min(n * 200, 5000) } });
     client.on('error', (err) => console.warn('[redis]', err.message));
     // Los comandos se encolan hasta que la conexión esté lista.
     client.connect().catch((err) => console.warn('[redis] No se pudo conectar:', err.message));

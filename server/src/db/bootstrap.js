@@ -10,6 +10,15 @@ const { uuid } = require('../utils/crypto');
 async function ensureFirstAdmin() {
   const { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME } = process.env;
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) return;
+  // Un valor con texto de más (p. ej. un comentario pegado) no debe crear un administrador inservible.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ADMIN_EMAIL)) {
+    console.error(`ADMIN_EMAIL no es un correo válido: "${ADMIN_EMAIL}". No se creó el administrador; corrige la variable y vuelve a desplegar.`);
+    return;
+  }
+  if (ADMIN_PASSWORD.length < 8) {
+    console.error('ADMIN_PASSWORD debe tener al menos 8 caracteres. No se creó el administrador.');
+    return;
+  }
   const any = await db('users').where({ role_id: 'admin' }).first();
   if (any) return;
   const ts = now();
