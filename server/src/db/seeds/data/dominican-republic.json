@@ -1,0 +1,812 @@
+{
+ "provinces": [
+  {
+   "name": "Distrito Nacional",
+   "code": "DO-01",
+   "lat": 18.4861,
+   "lng": -69.9312
+  },
+  {
+   "name": "Azua",
+   "code": "DO-02",
+   "lat": 18.4532,
+   "lng": -70.7349
+  },
+  {
+   "name": "Bahoruco",
+   "code": "DO-03",
+   "lat": 18.481,
+   "lng": -71.419
+  },
+  {
+   "name": "Barahona",
+   "code": "DO-04",
+   "lat": 18.2085,
+   "lng": -71.1008
+  },
+  {
+   "name": "Dajabón",
+   "code": "DO-05",
+   "lat": 19.549,
+   "lng": -71.708
+  },
+  {
+   "name": "Duarte",
+   "code": "DO-06",
+   "lat": 19.3008,
+   "lng": -70.2526
+  },
+  {
+   "name": "Elías Piña",
+   "code": "DO-07",
+   "lat": 18.877,
+   "lng": -71.7
+  },
+  {
+   "name": "El Seibo",
+   "code": "DO-08",
+   "lat": 18.765,
+   "lng": -69.039
+  },
+  {
+   "name": "Espaillat",
+   "code": "DO-09",
+   "lat": 19.393,
+   "lng": -70.525
+  },
+  {
+   "name": "Independencia",
+   "code": "DO-10",
+   "lat": 18.492,
+   "lng": -71.851
+  },
+  {
+   "name": "La Altagracia",
+   "code": "DO-11",
+   "lat": 18.615,
+   "lng": -68.708
+  },
+  {
+   "name": "La Romana",
+   "code": "DO-12",
+   "lat": 18.427,
+   "lng": -68.972
+  },
+  {
+   "name": "La Vega",
+   "code": "DO-13",
+   "lat": 19.222,
+   "lng": -70.529
+  },
+  {
+   "name": "María Trinidad Sánchez",
+   "code": "DO-14",
+   "lat": 19.376,
+   "lng": -69.847
+  },
+  {
+   "name": "Monte Cristi",
+   "code": "DO-15",
+   "lat": 19.848,
+   "lng": -71.646
+  },
+  {
+   "name": "Pedernales",
+   "code": "DO-16",
+   "lat": 18.038,
+   "lng": -71.744
+  },
+  {
+   "name": "Peravia",
+   "code": "DO-17",
+   "lat": 18.28,
+   "lng": -70.331
+  },
+  {
+   "name": "Puerto Plata",
+   "code": "DO-18",
+   "lat": 19.793,
+   "lng": -70.688
+  },
+  {
+   "name": "Hermanas Mirabal",
+   "code": "DO-19",
+   "lat": 19.378,
+   "lng": -70.418
+  },
+  {
+   "name": "Samaná",
+   "code": "DO-20",
+   "lat": 19.205,
+   "lng": -69.336
+  },
+  {
+   "name": "San Cristóbal",
+   "code": "DO-21",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "name": "San Juan",
+   "code": "DO-22",
+   "lat": 18.806,
+   "lng": -71.229
+  },
+  {
+   "name": "San Pedro de Macorís",
+   "code": "DO-23",
+   "lat": 18.461,
+   "lng": -69.308
+  },
+  {
+   "name": "Sánchez Ramírez",
+   "code": "DO-24",
+   "lat": 19.053,
+   "lng": -70.149
+  },
+  {
+   "name": "Santiago",
+   "code": "DO-25",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "name": "Santiago Rodríguez",
+   "code": "DO-26",
+   "lat": 19.476,
+   "lng": -71.341
+  },
+  {
+   "name": "Valverde",
+   "code": "DO-27",
+   "lat": 19.552,
+   "lng": -71.078
+  },
+  {
+   "name": "Monseñor Nouel",
+   "code": "DO-28",
+   "lat": 18.937,
+   "lng": -70.409
+  },
+  {
+   "name": "Monte Plata",
+   "code": "DO-29",
+   "lat": 18.807,
+   "lng": -69.784
+  },
+  {
+   "name": "Hato Mayor",
+   "code": "DO-30",
+   "lat": 18.763,
+   "lng": -69.257
+  },
+  {
+   "name": "San José de Ocoa",
+   "code": "DO-31",
+   "lat": 18.546,
+   "lng": -70.506
+  },
+  {
+   "name": "Santo Domingo",
+   "code": "DO-32",
+   "lat": 18.55,
+   "lng": -69.85
+  }
+ ],
+ "municipalities": [
+  {
+   "province": "Distrito Nacional",
+   "name": "Santo Domingo de Guzmán",
+   "kind": "municipio",
+   "lat": 18.48,
+   "lng": -69.93
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Este",
+   "kind": "municipio",
+   "lat": 18.4885,
+   "lng": -69.857
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Oeste",
+   "kind": "municipio",
+   "lat": 18.497,
+   "lng": -69.99
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Santo Domingo Norte",
+   "kind": "municipio",
+   "lat": 18.556,
+   "lng": -69.9
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Los Alcarrizos",
+   "kind": "municipio",
+   "lat": 18.5167,
+   "lng": -70.0167
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Pantoja",
+   "kind": "distrito_municipal",
+   "lat": 18.508,
+   "lng": -69.999
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Boca Chica",
+   "kind": "municipio",
+   "lat": 18.4539,
+   "lng": -69.6064
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "La Caleta",
+   "kind": "distrito_municipal",
+   "lat": 18.463,
+   "lng": -69.685
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "San Luis",
+   "kind": "distrito_municipal",
+   "lat": 18.507,
+   "lng": -69.765
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "La Victoria",
+   "kind": "distrito_municipal",
+   "lat": 18.593,
+   "lng": -69.85
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "Pedro Brand",
+   "kind": "municipio",
+   "lat": 18.5667,
+   "lng": -70.0911
+  },
+  {
+   "province": "Santo Domingo",
+   "name": "San Antonio de Guerra",
+   "kind": "municipio",
+   "lat": 18.55,
+   "lng": -69.7
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "San Cristóbal",
+   "kind": "municipio",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "province": "San Cristóbal",
+   "name": "Bajos de Haina",
+   "kind": "municipio",
+   "lat": 18.4167,
+   "lng": -70.0333
+  },
+  {
+   "province": "Santiago",
+   "name": "Santiago de los Caballeros",
+   "kind": "municipio",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "province": "La Romana",
+   "name": "La Romana",
+   "kind": "municipio",
+   "lat": 18.427,
+   "lng": -68.972
+  },
+  {
+   "province": "La Altagracia",
+   "name": "Higüey",
+   "kind": "municipio",
+   "lat": 18.615,
+   "lng": -68.708
+  },
+  {
+   "province": "La Altagracia",
+   "name": "Verón-Punta Cana",
+   "kind": "distrito_municipal",
+   "lat": 18.582,
+   "lng": -68.406
+  },
+  {
+   "province": "San Pedro de Macorís",
+   "name": "San Pedro de Macorís",
+   "kind": "municipio",
+   "lat": 18.461,
+   "lng": -69.308
+  },
+  {
+   "province": "Puerto Plata",
+   "name": "San Felipe de Puerto Plata",
+   "kind": "municipio",
+   "lat": 19.793,
+   "lng": -70.688
+  },
+  {
+   "province": "La Vega",
+   "name": "Concepción de La Vega",
+   "kind": "municipio",
+   "lat": 19.222,
+   "lng": -70.529
+  },
+  {
+   "province": "Peravia",
+   "name": "Baní",
+   "kind": "municipio",
+   "lat": 18.28,
+   "lng": -70.331
+  }
+ ],
+ "sectors": [
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Piantini",
+   "lat": 18.4715,
+   "lng": -69.94
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Naco",
+   "lat": 18.476,
+   "lng": -69.93
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Gazcue",
+   "lat": 18.466,
+   "lng": -69.901
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Bella Vista",
+   "lat": 18.456,
+   "lng": -69.94
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Zona Colonial",
+   "lat": 18.473,
+   "lng": -69.884
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Los Prados",
+   "lat": 18.488,
+   "lng": -69.946
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Cristo Rey",
+   "lat": 18.495,
+   "lng": -69.93
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Villa Juana",
+   "lat": 18.488,
+   "lng": -69.908
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Arroyo Hondo",
+   "lat": 18.505,
+   "lng": -69.955
+  },
+  {
+   "municipality": "Santo Domingo de Guzmán",
+   "name": "Evaristo Morales",
+   "lat": 18.48,
+   "lng": -69.941
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Los Mina",
+   "lat": 18.495,
+   "lng": -69.873
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Alma Rosa",
+   "lat": 18.488,
+   "lng": -69.856
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Ensanche Ozama",
+   "lat": 18.483,
+   "lng": -69.87
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Invivienda",
+   "lat": 18.505,
+   "lng": -69.818
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "San Isidro",
+   "lat": 18.503,
+   "lng": -69.77
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Villa Faro",
+   "lat": 18.49,
+   "lng": -69.838
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Los Tres Brazos",
+   "lat": 18.51,
+   "lng": -69.865
+  },
+  {
+   "municipality": "Santo Domingo Este",
+   "name": "Las Américas",
+   "lat": 18.47,
+   "lng": -69.82
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Herrera",
+   "lat": 18.4766,
+   "lng": -69.9653
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Manoguayabo",
+   "lat": 18.49,
+   "lng": -70.005
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Las Caobas",
+   "lat": 18.497,
+   "lng": -69.983
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Km 9 Autopista Duarte",
+   "lat": 18.493,
+   "lng": -69.968
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Bayona",
+   "lat": 18.458,
+   "lng": -69.99
+  },
+  {
+   "municipality": "Santo Domingo Oeste",
+   "name": "Engombe",
+   "lat": 18.46,
+   "lng": -70.0
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Villa Mella",
+   "lat": 18.5539,
+   "lng": -69.9029
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Sabana Perdida",
+   "lat": 18.548,
+   "lng": -69.885
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Guaricano",
+   "lat": 18.532,
+   "lng": -69.918
+  },
+  {
+   "municipality": "Santo Domingo Norte",
+   "name": "Ciudad Modelo",
+   "lat": 18.57,
+   "lng": -69.885
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Los Alcarrizos Centro",
+   "lat": 18.5167,
+   "lng": -70.0167
+  },
+  {
+   "municipality": "Los Alcarrizos",
+   "name": "Km 14 Autopista Duarte",
+   "lat": 18.51,
+   "lng": -70.004
+  },
+  {
+   "municipality": "Boca Chica",
+   "name": "Boca Chica Centro",
+   "lat": 18.4539,
+   "lng": -69.6064
+  },
+  {
+   "municipality": "Boca Chica",
+   "name": "Andrés",
+   "lat": 18.444,
+   "lng": -69.627
+  },
+  {
+   "municipality": "San Antonio de Guerra",
+   "name": "Guerra Centro",
+   "lat": 18.55,
+   "lng": -69.7
+  },
+  {
+   "municipality": "Bajos de Haina",
+   "name": "Haina Centro",
+   "lat": 18.4167,
+   "lng": -70.0333
+  },
+  {
+   "municipality": "San Cristóbal",
+   "name": "San Cristóbal Centro",
+   "lat": 18.4167,
+   "lng": -70.1
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Centro de Santiago",
+   "lat": 19.4517,
+   "lng": -70.697
+  },
+  {
+   "municipality": "Santiago de los Caballeros",
+   "name": "Gurabo",
+   "lat": 19.478,
+   "lng": -70.67
+  }
+ ],
+ "zones": [
+  {
+   "name": "Distrito Nacional",
+   "kind": "province",
+   "province": "Distrito Nacional",
+   "municipality": null,
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 150,
+   "color": "#2563eb"
+  },
+  {
+   "name": "Provincia Santo Domingo",
+   "kind": "province",
+   "province": "Santo Domingo",
+   "municipality": null,
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 350,
+   "color": "#64748b"
+  },
+  {
+   "name": "Santo Domingo Este",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Este",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 300,
+   "color": "#0891b2"
+  },
+  {
+   "name": "Santo Domingo Oeste",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Oeste",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 250,
+   "color": "#7c3aed"
+  },
+  {
+   "name": "Santo Domingo Norte",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Norte",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 300,
+   "color": "#db2777"
+  },
+  {
+   "name": "Los Alcarrizos",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Los Alcarrizos",
+   "sector": null,
+   "geometry": "circle",
+   "data": {
+    "center": [
+     18.5167,
+     -70.0167
+    ],
+    "radius": 3500
+   },
+   "price": 200,
+   "color": "#16a34a"
+  },
+  {
+   "name": "Pantoja",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Pantoja",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 225,
+   "color": "#65a30d"
+  },
+  {
+   "name": "Pedro Brand",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Pedro Brand",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 350,
+   "color": "#ca8a04"
+  },
+  {
+   "name": "Boca Chica",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "Boca Chica",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 500,
+   "color": "#ea580c"
+  },
+  {
+   "name": "San Antonio de Guerra",
+   "kind": "municipality",
+   "province": "Santo Domingo",
+   "municipality": "San Antonio de Guerra",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 450,
+   "color": "#b45309"
+  },
+  {
+   "name": "Haina",
+   "kind": "municipality",
+   "province": "San Cristóbal",
+   "municipality": "Bajos de Haina",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 350,
+   "color": "#0d9488"
+  },
+  {
+   "name": "San Cristóbal",
+   "kind": "municipality",
+   "province": "San Cristóbal",
+   "municipality": "San Cristóbal",
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 400,
+   "color": "#4f46e5"
+  },
+  {
+   "name": "Santiago",
+   "kind": "province",
+   "province": "Santiago",
+   "municipality": null,
+   "sector": null,
+   "geometry": "none",
+   "data": null,
+   "price": 700,
+   "color": "#9333ea"
+  },
+  {
+   "name": "Herrera",
+   "kind": "sector",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Oeste",
+   "sector": "Herrera",
+   "geometry": "circle",
+   "data": {
+    "center": [
+     18.4766,
+     -69.9653
+    ],
+    "radius": 1600
+   },
+   "price": 250,
+   "color": "#dc2626"
+  },
+  {
+   "name": "Villa Mella",
+   "kind": "sector",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Norte",
+   "sector": "Villa Mella",
+   "geometry": "none",
+   "data": null,
+   "price": 300,
+   "color": "#be185d"
+  },
+  {
+   "name": "San Isidro",
+   "kind": "sector",
+   "province": "Santo Domingo",
+   "municipality": "Santo Domingo Este",
+   "sector": "San Isidro",
+   "geometry": "none",
+   "data": null,
+   "price": 350,
+   "color": "#0284c7"
+  },
+  {
+   "name": "Autopista Duarte Km 9 – Km 14",
+   "kind": "custom",
+   "province": "Santo Domingo",
+   "municipality": null,
+   "sector": null,
+   "geometry": "polygon",
+   "data": {
+    "polygon": [
+     [
+      18.49,
+      -69.9655
+     ],
+     [
+      18.4995,
+      -69.9665
+     ],
+     [
+      18.5065,
+      -69.974
+     ],
+     [
+      18.518,
+      -70.0035
+     ],
+     [
+      18.515,
+      -70.0125
+     ],
+     [
+      18.5055,
+      -70.0065
+     ],
+     [
+      18.4945,
+      -69.979
+     ],
+     [
+      18.489,
+      -69.97
+     ]
+    ]
+   },
+   "price": 225,
+   "color": "#f59e0b"
+  }
+ ]
+}

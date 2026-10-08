@@ -1,0 +1,17 @@
+{
+  "name": "logistica-rd",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma de logística y gestión de entregas para República Dominicana",
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "npm run dev -w server & npm run dev -w client",
+    "build": "npm run build -w client",
+    "start": "npm start -w server",
+    "migrate": "npm run migrate -w server",
+    "seed": "npm run seed -w server",
+    "reset": "npm run reset -w server",
+    "test": "npm test -w server"
+  },
+  "engines": { "node": ">=20" }
+}
