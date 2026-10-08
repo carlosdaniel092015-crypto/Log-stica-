@@ -258,3 +258,12 @@ test('pedido para cliente nuevo sin teléfono (opcional)', async () => {
   assert.equal(share.status, 200);
   assert.match(share.body.whatsapp_url, /^https:\/\/wa\.me\/\?text=/, 'sin número: WhatsApp deja elegir el contacto');
 });
+
+test('pegar la ubicación de WhatsApp devuelve las coordenadas', async () => {
+  const ok = await admin.post('/api/maps/parse-location').send({ text: 'https://www.google.com/maps?q=18.517597198486328,-70.04505920410156&z=17&hl=es' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.lat, 18.517597198486328);
+  const bad = await admin.post('/api/maps/parse-location').send({ text: 'Calle 5 #10, Herrera' });
+  assert.equal(bad.status, 400);
+  assert.equal((await request(app).post('/api/maps/parse-location').send({ text: '18.5,-70.0' })).status, 401);
+});

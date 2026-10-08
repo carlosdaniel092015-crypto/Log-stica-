@@ -74,6 +74,8 @@ const config = {
     subject: env.VAPID_SUBJECT || 'mailto:soporte@example.com',
   },
 
+  // Dirección escrita desde coordenadas con OpenStreetMap si no hay clave de servidor de Google.
+  osmGeocoder: env.OSM_GEOCODER ? env.OSM_GEOCODER === 'true' : !isTest,
   redisUrl: env.REDIS_URL || '',
   // Contraseña aparte de la URL: así funciona aunque tenga símbolos (#, @, /…).
   redisPassword: env.REDIS_PASSWORD || '',

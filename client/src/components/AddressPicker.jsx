@@ -17,6 +17,9 @@ export async function getGeoTree(force = false) {
   }
 }
 
+// Texto que parece una ubicación compartida (enlace de mapas o coordenadas con decimales).
+const LOCATION_HINT = /(google\.[a-z.]+\/maps|maps\.google\.|maps\.app\.goo\.gl|goo\.gl\/maps|waze\.com|maps\.apple\.com|geo:|-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+)/i;
+
 export const LOCATION_PRIVACY_TEXT = 'Usaremos tu ubicación únicamente para identificar con mayor precisión dónde deseas recibir tu pedido.';
 
 /** Botón "USAR MI UBICACIÓN ACTUAL" con explicación previa antes de pedir permiso. */
@@ -102,7 +105,7 @@ export default function AddressPicker({ value, onChange, showReference = true, m
           address = address || r.formatted_address;
         }
         const current = valueRef.current;
-        onChange({
+        const next = {
           ...current,
           lat,
           lng,
@@ -112,7 +115,9 @@ export default function AddressPicker({ value, onChange, showReference = true, m
           municipality_id: admin.municipality_id,
           sector_id: admin.sector_id,
           admin_approximate: admin.approximate,
-        });
+        };
+        onChange(next);
+        return next;
       } catch {
         /* la resolución administrativa es opcional */
       }
@@ -179,12 +184,67 @@ export default function AddressPicker({ value, onChange, showReference = true, m
     onChange({ ...valueRef.current, lat: o.lat, lng: o.lng, province_id: o.province_id || null, municipality_id: o.municipality_id || null, sector_id: o.sector_id || null, admin_approximate: false });
   };
 
+  // Ubicación pegada desde WhatsApp / Google Maps / Waze: se ubica el pin y se llenan los campos.
+  const [pasteText, setPasteText] = useState('');
+  const [pasteMsg, setPasteMsg] = useState(null);
+  const [pasting, setPasting] = useState(false);
+  const applyPasted = async (text) => {
+    if (!text?.trim()) return;
+    setPasting(true);
+    setPasteMsg(null);
+    try {
+      const p = await api.post('/api/maps/parse-location', { text });
+      const cur = (await resolvePoint(p.lat, p.lng)) || valueRef.current;
+      setPasteText('');
+      if (cur.formatted_address) {
+        setPasteMsg({ ok: true, text: 'Listo: ubicamos el pin y llenamos la dirección. Revísala y agrega la referencia.' });
+      } else {
+        // Sin dirección escrita del geocodificador: se propone "Sector, Municipio" para completar.
+        const t = tree || (await getGeoTree().catch(() => null));
+        const sector = t?.sectors.find((x) => x.id === cur.sector_id)?.name;
+        const muni = t?.municipalities.find((x) => x.id === cur.municipality_id)?.name;
+        const guess = [sector, muni].filter(Boolean).join(', ');
+        if (guess) onChange({ ...cur, formatted_address: guess });
+        setPasteMsg({ ok: true, text: 'Ubicamos el pin y la zona. Agrega la calle y el número en "Dirección completa".' });
+      }
+    } catch (err) {
+      setPasteMsg({ ok: false, text: err.message });
+    } finally {
+      setPasting(false);
+    }
+  };
+  const onPasteLocation = (e) => {
+    const text = e.clipboardData?.getData('text') || '';
+    if (!LOCATION_HINT.test(text)) return;
+    e.preventDefault();
+    setPasteText(text);
+    applyPasted(text);
+  };
+
   const municipalities = useMemo(() => (tree?.municipalities || []).filter((m) => !v.province_id || m.province_id === v.province_id), [tree, v.province_id]);
   const sectors = useMemo(() => (tree?.sectors || []).filter((s) => !v.municipality_id || s.municipality_id === v.municipality_id), [tree, v.municipality_id]);
 
   return (
     <div className="stack">
-      <div ref={autoRef} />
+      <div className="paste-location">
+        <div className="input-group">
+          <input
+            className="input"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+            onPaste={onPasteLocation}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyPasted(pasteText); } }}
+            placeholder="Pega aquí la ubicación que envió el cliente (WhatsApp, Google Maps, Waze…)"
+            aria-label="Pegar ubicación"
+          />
+          <button type="button" className="btn" disabled={!pasteText.trim() || pasting} onClick={() => applyPasted(pasteText)}>
+            <Icon name="pin" /> {pasting ? 'Ubicando…' : 'Usar'}
+          </button>
+        </div>
+        {pasteMsg && <div className={`small ${pasteMsg.ok ? 'text-success' : 'text-danger'}`} role="status">{pasteMsg.text}</div>}
+      </div>
+      {/* Si pegan el enlace en el buscador de Google, también se usa como ubicación. */}
+      <div ref={autoRef} onPasteCapture={onPasteLocation} />
       {mapState && mapState.engine !== 'google' && placeOptions.length > 0 && (
         <div className="input-group">
           <input className="input" list="lrd-places" value={query} placeholder="Buscar sector o municipio para ubicar el mapa (ej. Herrera)" onChange={(e) => { setQuery(e.target.value); pickPlace(e.target.value); }} aria-label="Buscar sector" />
