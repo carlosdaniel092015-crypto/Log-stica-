@@ -33,6 +33,7 @@ const ACTIONS = {
   'user.password_reset': 'Restableció contraseña',
   'role.update': 'Cambió permisos',
   'customer.create': 'Registró cliente',
+  'customer.export': 'Descargó la base de clientes',
   'customer.update': 'Editó cliente',
   'customer.activate': 'Activó cliente',
   'customer.deactivate': 'Desactivó cliente',
@@ -89,6 +90,7 @@ export function auditText(a, statuses = {}) {
   else if (a.action === 'zone.import') detail = `${nv.created || 0} creadas · ${nv.updated || 0} actualizadas`;
   else if (a.action === 'product.stock_adjust') detail = `${nv.delta > 0 ? '+' : ''}${nv.delta}${nv.note ? ` · ${nv.note}` : ''}`;
   else if (a.action === 'order.customer_reference') detail = nv.reference || '';
+  else if (a.action === 'customer.export') detail = `${nv.count ?? ''} clientes · ${String(nv.format || 'csv').toUpperCase()}`;
   else if (a.action === 'order.update') detail = Object.keys(nv).slice(0, 3).join(', ');
   return { action, entity: ENTITIES[a.entity] || a.entity, detail };
 }
