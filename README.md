@@ -117,7 +117,7 @@ server/   Node.js + Express 5 + Socket.IO + Knex
 
 ## Mapas
 
-- **Sin configurar nada** se usa **OpenFreeMap** (teselas vectoriales de OpenStreetMap, gratis y sin clave) con Leaflet + MapLibre. Tiene estilo claro y oscuro, y las direcciones se buscan por sector o municipio y se ajustan arrastrando el pin.
+- **Sin configurar nada** se usa **OpenFreeMap** (teselas vectoriales de OpenStreetMap, gratis y sin clave) con MapLibre GL (acelerado por GPU). Tiene estilo claro y oscuro, y las direcciones se buscan por sector o municipio y se ajustan arrastrando el pin.
 - Si defines `GOOGLE_MAPS_BROWSER_KEY`, todos los mapas pasan a **Google Maps**, con autocompletado de Places. Nunca se mezclan ambos en un mismo mapa (lo prohíben los términos de Google).
 - En el panel hay **modo oscuro** (botón de luna arriba a la derecha); los mapas cambian de estilo con él.
 - Inventario: cada producto tiene una **existencia mínima**; al bajar de ella aparece el aviso "se están acabando" en el dashboard y en Inventario, y se notifica a los administradores.

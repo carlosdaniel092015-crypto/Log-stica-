@@ -1,6 +1,6 @@
 /**
  * Motor de mapas unificado.
- *  - "osm": OpenFreeMap (mapas vectoriales gratis, sin clave) con Leaflet + MapLibre.
+ *  - "osm": OpenFreeMap (mapas vectoriales gratis, sin clave) con MapLibre GL.
  *  - "google": Google Maps JavaScript API, si hay GOOGLE_MAPS_BROWSER_KEY.
  * Nunca se mezclan en un mismo mapa (los términos de Google no permiten usar
  * su contenido sobre mapas de terceros).
@@ -50,54 +50,155 @@ function markerBox(m) {
 const sig = (m) => [m.kind, m.color, m.label, m.pulse, m.size, m.draggable].join('|');
 
 /* ------------------------------------------------------------------ */
-/* OpenFreeMap (Leaflet + MapLibre)                                     */
+/* OpenFreeMap con MapLibre GL nativo (acelerado por GPU: zoom suave)   */
 /* ------------------------------------------------------------------ */
-let leafletLoading = null;
-async function loadLeaflet() {
-  if (!leafletLoading) {
-    leafletLoading = (async () => {
-      const [{ default: L }, maplibre] = await Promise.all([import('leaflet'), import('maplibre-gl')]);
-      await Promise.all([import('leaflet/dist/leaflet.css'), import('maplibre-gl/dist/maplibre-gl.css')]);
-      // El complemento usa las variables globales L y maplibregl.
-      window.L = L;
-      window.maplibregl = maplibre.default || maplibre;
-      await import('@maplibre/maplibre-gl-leaflet');
-      return L;
-    })();
+let maplibreLoading = null;
+function loadMaplibre() {
+  if (!maplibreLoading) {
+    maplibreLoading = Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')]).then(([m]) => m.default || m);
   }
-  return leafletLoading;
+  return maplibreLoading;
 }
 
+// MapLibre usa teselas de 512 px: su zoom equivale al de Google/Leaflet menos 1.
+const toGL = (z) => z - 1;
+const fromGL = (z) => z + 1;
+const EARTH = 6371008.8;
+const rad = (d) => (d * Math.PI) / 180;
+
+function distanceM(a, b) {
+  const dLat = rad(b.lat - a.lat);
+  const dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * EARTH * Math.asin(Math.sqrt(h));
+}
+
+/** Círculo como polígono de 64 lados (GeoJSON no tiene círculos). */
+function circleRing(lat, lng, radius, steps = 64) {
+  const dLat = radius / 111320;
+  const dLng = radius / (111320 * Math.cos(rad(lat)));
+  const ring = [];
+  for (let i = 0; i <= steps; i++) {
+    const a = (2 * Math.PI * i) / steps;
+    ring.push([lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)]);
+  }
+  return ring;
+}
+
+function shapeFeature(s, props) {
+  if (s.type === 'circle' && s.center && s.radius) {
+    const [lat, lng] = s.center;
+    return { type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: [circleRing(lat, lng, s.radius)] } };
+  }
+  if (s.type === 'polygon' && s.points?.length > 1) {
+    const ring = s.points.map(([lat, lng]) => [lng, lat]);
+    if (ring.length < 3) return { type: 'Feature', properties: props, geometry: { type: 'LineString', coordinates: ring } };
+    return { type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] } };
+  }
+  return null;
+}
+
+const collection = (features) => ({ type: 'FeatureCollection', features: features.filter(Boolean) });
+const FALLBACK_STYLE = { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#e9eef3' } }] };
+
 async function createOsmMap(container, { center, zoom, dark }) {
-  const L = await loadLeaflet();
-  const map = L.map(container, { zoomControl: true, attributionControl: true, maxZoom: 19 }).setView([center.lat, center.lng], zoom);
-  map.attributionControl.setPrefix(false);
-  let tiles = null;
-  let theme = null;
-  const setTheme = (isDark) => {
-    const t = isDark ? 'dark' : 'light';
-    if (t === theme) return;
-    if (tiles) map.removeLayer(tiles);
-    tiles = L.maplibreGL({ style: OFM_STYLES[t], attribution: ATTRIBUTION }).addTo(map);
-    container.classList.toggle('map-dark', t === 'dark');
-    theme = t;
-  };
-  setTheme(dark);
+  const maplibregl = await loadMaplibre();
+  let theme = dark ? 'dark' : 'light';
+  const map = new maplibregl.Map({
+    container,
+    style: OFM_STYLES[theme],
+    center: [center.lng, center.lat],
+    zoom: toGL(zoom),
+    maxZoom: toGL(20),
+    attributionControl: { compact: true, customAttribution: ATTRIBUTION },
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
+  });
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+  container.classList.toggle('map-dark', theme === 'dark');
 
+  // Si el estilo no carga (sin internet / servicio caído) se usa un fondo liso: marcadores y zonas siguen funcionando.
+  map.on('error', () => {
+    if (!map.isStyleLoaded() && !map._lrdFallback) {
+      map._lrdFallback = true;
+      map.setStyle(FALLBACK_STYLE);
+    }
+  });
+
+  const state = { shapes: [], lines: [], edit: null };
+  const shapeClicks = new Map();
   const markers = new Map();
-  const lines = new Map();
-  let shapeLayer = L.layerGroup().addTo(map);
-  let editLayer = L.layerGroup().addTo(map);
+  const clickCbs = new Set();
 
-  const iconFor = (m) => {
-    const b = markerBox(m);
-    return L.divIcon({ className: 'mk-icon', html: markerHtml(m), iconSize: [b.w, b.h], iconAnchor: b.drop ? [b.w / 2, Math.round(b.h / 2 + b.h * Math.SQRT1_2)] : [b.w / 2, b.h / 2] });
+  const SOURCES = {
+    'lrd-shapes': () => collection(state.shapes.map((s, i) => shapeFeature(s, { i, color: s.color || '#2563eb', fo: s.fillOpacity ?? 0.18, so: s.strokeOpacity ?? 0.9, dashed: !!s.dashed, click: !!s.onClick }))),
+    'lrd-lines': () => collection(state.lines.map((l) => ({ type: 'Feature', properties: { color: l.color || '#2563eb' }, geometry: { type: 'LineString', coordinates: [[l.from[1], l.from[0]], [l.to[1], l.to[0]]] } }))),
+    'lrd-edit': () => collection(state.edit ? [shapeFeature(state.edit, { color: state.edit.color || '#2563eb' })] : []),
   };
+  const refresh = (id) => map.getSource(id)?.setData(SOURCES[id]());
+
+  // Capas propias: se vuelven a crear cada vez que cambia el estilo (tema claro/oscuro).
+  map.on('style.load', () => {
+    for (const id of Object.keys(SOURCES)) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: SOURCES[id]() });
+    const add = (layer) => !map.getLayer(layer.id) && map.addLayer(layer);
+    add({ id: 'lrd-shapes-fill', type: 'fill', source: 'lrd-shapes', filter: ['==', '$type', 'Polygon'], paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'fo'] } });
+    add({ id: 'lrd-shapes-line', type: 'line', source: 'lrd-shapes', filter: ['!=', 'dashed', true], paint: { 'line-color': ['get', 'color'], 'line-opacity': ['get', 'so'], 'line-width': 2 } });
+    add({ id: 'lrd-shapes-dash', type: 'line', source: 'lrd-shapes', filter: ['==', 'dashed', true], paint: { 'line-color': ['get', 'color'], 'line-opacity': ['get', 'so'], 'line-width': 2, 'line-dasharray': [3, 3] } });
+    add({ id: 'lrd-lines', type: 'line', source: 'lrd-lines', layout: { 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 3, 'line-opacity': 0.9, 'line-dasharray': [2, 2] } });
+    add({ id: 'lrd-edit-fill', type: 'fill', source: 'lrd-edit', filter: ['==', '$type', 'Polygon'], paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.25 } });
+    add({ id: 'lrd-edit-line', type: 'line', source: 'lrd-edit', paint: { 'line-color': ['get', 'color'], 'line-width': 2 } });
+    for (const id of Object.keys(SOURCES)) refresh(id);
+  });
+
+  const clickableAt = (point) => {
+    if (!map.getLayer('lrd-shapes-fill')) return null;
+    const hits = map.queryRenderedFeatures(point, { layers: ['lrd-shapes-fill', 'lrd-shapes-line', 'lrd-shapes-dash'] });
+    return hits.find((f) => f.properties.click) || null;
+  };
+  map.on('click', (e) => {
+    if (e.originalEvent?.target?.closest?.('.maplibregl-marker, .maplibregl-popup')) return;
+    const hit = clickableAt(e.point);
+    if (hit) {
+      state.shapes[hit.properties.i]?.onClick?.(e.lngLat.lat, e.lngLat.lng);
+      return;
+    }
+    for (const cb of clickCbs) cb(e.lngLat.lat, e.lngLat.lng);
+  });
+  map.on('mousemove', (e) => {
+    map.getCanvas().style.cursor = clickableAt(e.point) ? 'pointer' : '';
+  });
+
+  const markerEl = (m) => {
+    const b = markerBox(m);
+    const el = document.createElement('div');
+    el.className = 'mk-icon';
+    el.style.width = `${b.w}px`;
+    el.style.height = `${b.h}px`;
+    el.innerHTML = markerHtml(m);
+    if (m.title) el.title = m.title;
+    return { el, offset: b.drop ? [0, -Math.round(b.h * Math.SQRT1_2)] : [0, 0] };
+  };
+  const newMarker = (m, { draggable = !!m.draggable } = {}) => {
+    const { el, offset } = markerEl(m);
+    el.style.zIndex = String(m.zIndex ?? (m.kind === 'courier' || m.kind === 'moto' ? 500 : m.kind === 'vertex' ? 900 : 1));
+    return new maplibregl.Marker({ element: el, offset, draggable });
+  };
+
+  let editMarkers = [];
 
   const handle = {
     engine: 'osm',
     map,
-    setTheme,
+    setTheme(isDark) {
+      const t = isDark ? 'dark' : 'light';
+      if (t === theme) return;
+      theme = t;
+      container.classList.toggle('map-dark', t === 'dark');
+      map._lrdFallback = false;
+      map.setStyle(OFM_STYLES[t]);
+    },
     setMarkers(list) {
       const seen = new Set();
       for (const m of list) {
@@ -105,112 +206,104 @@ async function createOsmMap(container, { center, zoom, dark }) {
         seen.add(m.id);
         let mk = markers.get(m.id);
         if (mk && mk._sig !== sig(m)) {
-          map.removeLayer(mk);
+          mk.remove();
           mk = null;
         }
         if (!mk) {
-          mk = L.marker([m.lat, m.lng], { icon: iconFor(m), draggable: !!m.draggable, zIndexOffset: m.zIndex ?? (m.kind === 'courier' || m.kind === 'moto' ? 500 : 0), keyboard: false });
-          if (m.title) mk.bindTooltip(m.title, { direction: 'top', offset: [0, -18] });
+          mk = newMarker(m).setLngLat([m.lng, m.lat]).addTo(map);
           mk._sig = sig(m);
-          mk.addTo(map);
+          mk.getElement().addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            mk._onClick?.();
+          });
+          mk.on('dragend', () => {
+            const p = mk.getLngLat();
+            mk._onDragEnd?.(p.lat, p.lng);
+          });
           markers.set(m.id, mk);
         } else {
-          const cur = mk.getLatLng();
-          if (Math.abs(cur.lat - m.lat) > 1e-7 || Math.abs(cur.lng - m.lng) > 1e-7) mk.setLatLng([m.lat, m.lng]);
-          if (m.title) mk.setTooltipContent(m.title);
+          const cur = mk.getLngLat();
+          if (Math.abs(cur.lat - m.lat) > 1e-7 || Math.abs(cur.lng - m.lng) > 1e-7) mk.setLngLat([m.lng, m.lat]);
+          if (m.title) mk.getElement().title = m.title;
         }
-        mk.off('dragend').off('click');
-        if (m.onDragEnd) mk.on('dragend', (e) => { const p = e.target.getLatLng(); m.onDragEnd(p.lat, p.lng); });
-        if (m.onClick) mk.on('click', () => m.onClick());
+        mk._onClick = m.onClick || null;
+        mk._onDragEnd = m.onDragEnd || null;
       }
-      for (const [id, mk] of markers) if (!seen.has(id)) { map.removeLayer(mk); markers.delete(id); }
+      for (const [id, mk] of markers) if (!seen.has(id)) { mk.remove(); markers.delete(id); }
     },
     setLines(list) {
-      const seen = new Set();
-      for (const l of list) {
-        if (!l.from || !l.to) continue;
-        seen.add(l.id);
-        let pl = lines.get(l.id);
-        if (!pl) {
-          pl = L.polyline([l.from, l.to], { color: l.color || '#2563eb', weight: 3, dashArray: '7 8', opacity: 0.9, interactive: false }).addTo(map);
-          lines.set(l.id, pl);
-        } else pl.setLatLngs([l.from, l.to]);
-      }
-      for (const [id, pl] of lines) if (!seen.has(id)) { map.removeLayer(pl); lines.delete(id); }
+      state.lines = list.filter((l) => l.from && l.to);
+      refresh('lrd-lines');
     },
     setShapes(list) {
-      shapeLayer.clearLayers();
-      for (const z of list) {
-        const o = { color: z.color, weight: 2, fillColor: z.color, fillOpacity: z.fillOpacity ?? 0.18, opacity: z.strokeOpacity ?? 0.9, dashArray: z.dashed ? '6 6' : null, interactive: !!z.onClick };
-        let layer = null;
-        if (z.type === 'polygon' && z.points?.length) layer = z.points.length > 2 ? L.polygon(z.points, o) : L.polyline(z.points, o);
-        if (z.type === 'circle' && z.center && z.radius) layer = L.circle(z.center, { ...o, radius: z.radius });
-        if (layer) {
-          if (z.onClick) layer.on('click', (e) => { L.DomEvent.stopPropagation(e); z.onClick(e.latlng.lat, e.latlng.lng); });
-          shapeLayer.addLayer(layer);
-        }
-      }
+      state.shapes = list.filter((s) => (s.type === 'polygon' && s.points?.length) || (s.type === 'circle' && s.center && s.radius));
+      refresh('lrd-shapes');
     },
     setEditable(shape, onChange) {
-      editLayer.clearLayers();
-      if (!shape) return;
+      for (const mk of editMarkers) mk.remove();
+      editMarkers = [];
+      state.edit = null;
+      if (!shape) return refresh('lrd-edit');
       const color = shape.color || '#2563eb';
-      const style = { color, weight: 2, fillColor: color, fillOpacity: 0.25, interactive: false };
-      const vIcon = L.divIcon({ className: 'mk-icon', html: markerHtml({ kind: 'vertex', color }), iconSize: [14, 14], iconAnchor: [7, 7] });
+      const vertex = () => newMarker({ kind: 'vertex', color }, { draggable: true });
       if (shape.type === 'polygon') {
         const pts = (shape.points || []).map((p) => [...p]);
-        const poly = pts.length > 2 ? L.polygon(pts, style) : L.polyline(pts, style);
-        editLayer.addLayer(poly);
+        state.edit = { type: 'polygon', points: pts, color };
         pts.forEach((p, i) => {
-          const v = L.marker(p, { icon: vIcon, draggable: true, zIndexOffset: 900 });
-          v.on('drag', (e) => { const ll = e.target.getLatLng(); pts[i] = [ll.lat, ll.lng]; poly.setLatLngs(pts); });
+          const v = vertex().setLngLat([p[1], p[0]]).addTo(map);
+          v.on('drag', () => { const ll = v.getLngLat(); pts[i] = [ll.lat, ll.lng]; refresh('lrd-edit'); });
           v.on('dragend', () => onChange({ type: 'polygon', points: pts.map(([a, b]) => [Number(a.toFixed(6)), Number(b.toFixed(6))]) }));
-          editLayer.addLayer(v);
+          editMarkers.push(v);
         });
       }
       if (shape.type === 'circle' && shape.center) {
-        let center = L.latLng(shape.center);
+        let c = { lat: shape.center[0], lng: shape.center[1] };
         let radius = shape.radius || 1000;
-        const circle = L.circle(center, { ...style, radius });
-        editLayer.addLayer(circle);
-        const handlePos = () => { const b = circle.getBounds(); return L.latLng(center.lat, b.getEast()); };
-        const c = L.marker(center, { icon: vIcon, draggable: true, zIndexOffset: 900 });
-        const r = L.marker(handlePos(), { icon: vIcon, draggable: true, zIndexOffset: 900 });
-        const emit = () => onChange({ type: 'circle', center: [Number(center.lat.toFixed(6)), Number(center.lng.toFixed(6))], radius: Math.round(radius) });
-        c.on('drag', (e) => { center = e.target.getLatLng(); circle.setLatLng(center); r.setLatLng(handlePos()); });
-        c.on('dragend', emit);
-        r.on('drag', (e) => { radius = Math.max(50, map.distance(center, e.target.getLatLng())); circle.setRadius(radius); });
-        r.on('dragend', () => { r.setLatLng(handlePos()); emit(); });
-        editLayer.addLayer(c);
-        editLayer.addLayer(r);
+        const handlePos = () => [c.lng + radius / (111320 * Math.cos(rad(c.lat))), c.lat];
+        const sync = () => { state.edit = { type: 'circle', center: [c.lat, c.lng], radius, color }; refresh('lrd-edit'); };
+        sync();
+        const emit = () => onChange({ type: 'circle', center: [Number(c.lat.toFixed(6)), Number(c.lng.toFixed(6))], radius: Math.round(radius) });
+        const cm = vertex().setLngLat([c.lng, c.lat]).addTo(map);
+        const rm = vertex().setLngLat(handlePos()).addTo(map);
+        cm.on('drag', () => { const ll = cm.getLngLat(); c = { lat: ll.lat, lng: ll.lng }; rm.setLngLat(handlePos()); sync(); });
+        cm.on('dragend', emit);
+        rm.on('drag', () => { radius = Math.max(50, distanceM(c, rm.getLngLat())); sync(); });
+        rm.on('dragend', () => { rm.setLngLat(handlePos()); emit(); });
+        editMarkers.push(cm, rm);
       }
+      refresh('lrd-edit');
     },
     onClick(cb) {
-      const fn = (e) => cb(e.latlng.lat, e.latlng.lng);
-      map.on('click', fn);
-      return () => map.off('click', fn);
+      clickCbs.add(cb);
+      return () => clickCbs.delete(cb);
     },
     fit(points, { maxZoom = 15, padding = 50 } = {}) {
       const valid = points.filter((p) => p && p.lat != null && p.lng != null);
       if (!valid.length) return;
-      if (valid.length === 1) map.setView([valid[0].lat, valid[0].lng], Math.min(maxZoom, 15));
-      else map.fitBounds(valid.map((p) => [p.lat, p.lng]), { padding: [padding, padding], maxZoom });
+      if (valid.length === 1) return map.jumpTo({ center: [valid[0].lng, valid[0].lat], zoom: toGL(Math.min(maxZoom, 15)) });
+      const b = new maplibregl.LngLatBounds();
+      for (const p of valid) b.extend([p.lng, p.lat]);
+      const box = container.getBoundingClientRect();
+      const pad = Math.max(0, Math.min(padding, box.width / 4, box.height / 4));
+      map.fitBounds(b, { padding: pad, maxZoom: toGL(maxZoom), duration: 0 });
     },
     setView(c, z) {
-      map.setView([c.lat, c.lng], z ?? map.getZoom());
+      map.jumpTo({ center: [c.lng, c.lat], zoom: z != null ? toGL(z) : map.getZoom() });
     },
-    getZoom: () => map.getZoom(),
+    getZoom: () => fromGL(map.getZoom()),
     popup(markerId, html) {
       const mk = markers.get(markerId);
-      if (mk) mk.unbindPopup().bindPopup(html, { maxWidth: 280 }).openPopup();
+      if (!mk) return;
+      mk.setPopup(new maplibregl.Popup({ offset: 20, maxWidth: '280px' }).setHTML(html));
+      if (!mk.getPopup().isOpen()) mk.togglePopup();
     },
-    invalidate: () => map.invalidateSize(),
+    invalidate: () => map.resize(),
     destroy() {
       map.remove();
     },
   };
-  // Leaflet necesita recalcular el tamaño cuando el contenedor cambia (modales, pestañas).
-  const ro = new ResizeObserver(() => map.invalidateSize());
+  // Recalcula el tamaño cuando el contenedor cambia (modales, pestañas, paneles).
+  const ro = new ResizeObserver(() => map.resize());
   ro.observe(container);
   const destroy = handle.destroy;
   handle.destroy = () => { ro.disconnect(); destroy(); };
