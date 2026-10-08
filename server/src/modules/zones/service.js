@@ -13,6 +13,16 @@ function currentRateSubquery() {
     .limit(1);
 }
 
+/** ¿La zona cubre algún lugar? Sin área dibujada necesita su provincia/municipio/sector. */
+function zoneCovers(z) {
+  if (z.geometry_type === 'polygon') return !!z.polygon;
+  if (z.geometry_type === 'circle') return z.center_lat != null && !!z.radius_m;
+  if (z.kind === 'province') return !!z.province_id;
+  if (z.kind === 'municipality') return !!z.municipality_id;
+  if (z.kind === 'sector') return !!z.sector_id;
+  return false;
+}
+
 function mapZone(z) {
   return {
     id: z.id,
@@ -33,6 +43,7 @@ function mapZone(z) {
     color: z.color,
     active: bool(z.active),
     price: z.price == null ? null : Number(z.price),
+    covers: zoneCovers(z),
     created_at: z.created_at,
     updated_at: z.updated_at,
   };

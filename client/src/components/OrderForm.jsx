@@ -40,8 +40,8 @@ function useQuote(address) {
   return { quote, loading };
 }
 
-export function QuoteBox({ quote, loading }) {
-  const { currency } = useApp();
+export function QuoteBox({ quote, loading, onManualFee }) {
+  const { currency, user } = useApp();
   if (loading) return <div className="alert alert-info small">Calculando tarifa…</div>;
   if (!quote) return <div className="alert alert-info small">Selecciona la dirección para calcular automáticamente el precio del delivery.</div>;
   return (
@@ -54,6 +54,15 @@ export function QuoteBox({ quote, loading }) {
         <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{quote.fee != null ? money(quote.fee, currency) : '—'}</div>
       </div>
       {quote.warnings?.map((w) => <div key={w} className="small" style={{ marginTop: 4 }}>⚠ {w}</div>)}
+      {!quote.covered && (
+        <div className="stack-sm" style={{ marginTop: 8 }}>
+          <div className="small">Ninguna zona cubre este punto. Si una zona tiene un círculo o polígono dibujado, solo cobra dentro de esa área.</div>
+          <div className="row-wrap">
+            {onManualFee && can(user, 'orders.override_fee') && <button type="button" className="btn btn-sm btn-primary" onClick={onManualFee}>Escribir costo de envío</button>}
+            {can(user, 'zones.manage') && <a className="btn btn-sm" href="/admin/tarifas" target="_blank" rel="noreferrer"><Icon name="tag" /> Configurar zonas y tarifas</a>}
+          </div>
+        </div>
+      )}
       {quote.candidates?.length > 1 && (
         <div className="tiny muted" style={{ marginTop: 4 }}>
           También coincide con: {quote.candidates.slice(1).map((c) => `${c.name} (${money(c.price, currency)})`).join(', ')}
@@ -134,6 +143,11 @@ export default function OrderForm({ onClose, onCreated }) {
     e?.preventDefault();
     if (step < 3) return next(); // Enter en los pasos 1 y 2 avanza, no envía.
     setError(null);
+    if (quote && !quote.covered && !(overrideFee && fee !== '')) {
+      return setError(can(user, 'orders.override_fee')
+        ? 'Esta dirección no está en ninguna zona de cobertura: escribe el costo de envío (marca "Modificar costo de envío manualmente") o configura una zona que la cubra.'
+        : 'Esta dirección no está en ninguna zona de cobertura. Pide al administrador que configure una zona para ese sector.');
+    }
     if (mode === 'existing' && !customer) return setError('Selecciona un cliente o registra uno nuevo.');
     if (!address.formatted_address) return setError('Indica la dirección de entrega.');
     setBusy(true);
@@ -182,7 +196,9 @@ export default function OrderForm({ onClose, onCreated }) {
       onClose={onClose}
       footer={
         <>
-          {step === 3 && <div className="spacer bold">Total: {money(total, currency)}</div>}
+          {step === 3 && (quote && !quote.covered && !(overrideFee && fee !== '')
+            ? <div className="spacer bold" style={{ color: 'var(--warning)' }}>Falta el costo de envío</div>
+            : <div className="spacer bold">Total: {money(total, currency)}</div>)}
           {step === 1 ? <button key="cancel" type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button> : <button key="back" type="button" className="btn btn-ghost" onClick={() => { setError(null); setStep(step - 1); }}>Atrás</button>}
           {step < 3 ? <button key="next" type="button" className="btn btn-primary" onClick={next}>Siguiente</button> : <button key="submit" type="submit" className="btn btn-primary" form="order-form" disabled={busy}>{busy ? 'Guardando…' : 'Confirmar pedido'}</button>}
         </>
@@ -248,17 +264,17 @@ export default function OrderForm({ onClose, onCreated }) {
             )}
             <AddressPicker value={address} onChange={(a) => { setAddress(a); if (addressId && (a.lat !== address.lat || a.formatted_address !== address.formatted_address)) setAddressId(''); }} />
             {!addressId && <label className="check small"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> Guardar esta dirección en el cliente</label>}
-            <QuoteBox quote={quote} loading={quoting} />
+            <QuoteBox quote={quote} loading={quoting} onManualFee={() => { if (!stepError(2)) { setOverrideFee(true); setFee(''); setStep(3); } else next(); }} />
           </section>
         )}
 
         {step === 3 && (
           <section className="stack">
-            <QuoteBox quote={quote} loading={quoting} />
+            <QuoteBox quote={quote} loading={quoting} onManualFee={() => { setOverrideFee(true); setFee(''); }} />
             {can(user, 'orders.override_fee') && (
               <div className="row-wrap">
                 <label className="check small"><input type="checkbox" checked={overrideFee} onChange={(e) => { setOverrideFee(e.target.checked); setFee(quote?.fee ?? ''); }} /> Modificar costo de envío manualmente</label>
-                {overrideFee && <input className="input" style={{ width: 140 }} type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} aria-label="Costo de envío" required />}
+                {overrideFee && <input className="input" style={{ width: 140 }} type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} aria-label="Costo de envío" placeholder={`${currency} 0`} autoFocus required />}
               </div>
             )}
             {activeProducts.length > 0 && (
