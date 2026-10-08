@@ -1,29 +1,131 @@
-# Despliegue de referencia: aplicación + PostgreSQL.
-# Coloca un proxy con HTTPS (Nginx, Caddy, Traefik o el balanceador de tu proveedor) delante.
+# =====================================================================
+# Entregas RD — despliegue completo para Dokploy (tipo "Docker Compose")
+#
+#   app              Aplicación (API + frontend + tiempo real)       :3000
+#   supabase-db      Base de datos Supabase (PostgreSQL)              interna
+#   supabase-meta    API de metadatos de Supabase (para Studio)       interna
+#   supabase-studio  Panel de Supabase para ver/editar la base        127.0.0.1:3001
+#   redis            Redis: tiempo real multi-instancia y rate limit  interna
+#
+# En Dokploy: crea un servicio "Compose" con este repositorio, copia las
+# variables de .env.dokploy.example en la pestaña "Environment" y asigna el
+# dominio al servicio "app", puerto 3000 (Dokploy configura HTTPS con Traefik).
+# =====================================================================
+
 services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: logistica
-      POSTGRES_USER: logistica
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
   app:
     build: .
-    env_file: .env
-    environment:
-      DB_CLIENT: pg
-      DATABASE_URL: postgres://logistica:${POSTGRES_PASSWORD}@db:5432/logistica
-      UPLOADS_DIR: /app/server/data/uploads
-    ports:
-      - "3000:3000"
-    volumes:
-      - uploads:/app/server/data
-    depends_on:
-      - db
     restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Define PUBLIC_BASE_URL, ej. https://entregas.tudominio.com}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?Define DATA_ENCRYPTION_KEY}
+      SESSION_HOURS: ${SESSION_HOURS:-12}
+      FORCE_HTTPS: ${FORCE_HTTPS:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      DB_CLIENT: pg
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@supabase-db:5432/postgres
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      UPLOADS_DIR: /app/server/data/uploads
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      LOAD_DEMO_DATA: ${LOAD_DEMO_DATA:-false}
+      GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      GOOGLE_MAPS_SERVER_KEY: ${GOOGLE_MAPS_SERVER_KEY:-}
+      GOOGLE_MAPS_MAP_ID: ${GOOGLE_MAPS_MAP_ID:-DEMO_MAP_ID}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:soporte@example.com}
+    volumes:
+      - app-uploads:/app/server/data
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  supabase-db:
+    image: supabase/postgres:15.14.1.172
+    restart: unless-stopped
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "log_min_messages=fatal"]
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  supabase-meta:
+    image: supabase/postgres-meta:v0.99.0
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: supabase-db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      CRYPTO_KEY: ${PG_META_CRYPTO_KEY:?Define PG_META_CRYPTO_KEY}
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+
+  supabase-studio:
+    image: supabase/studio:2026.09.21-sha-512201d
+    restart: unless-stopped
+    # Studio no tiene inicio de sesión propio: SOLO se publica en 127.0.0.1 del servidor.
+    # Accede con un túnel SSH:  ssh -L 3001:127.0.0.1:3001 usuario@tu-servidor  → http://localhost:3001
+    ports:
+      - "127.0.0.1:${STUDIO_PORT:-3001}:3000"
+    environment:
+      HOSTNAME: 0.0.0.0
+      STUDIO_PG_META_URL: http://supabase-meta:8080
+      PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+      POSTGRES_HOST: supabase-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_ORGANIZATION:-Entregas RD}
+      DEFAULT_PROJECT_NAME: ${STUDIO_PROJECT:-Logística}
+      NEXT_PUBLIC_ENABLE_LOGS: "false"
+    depends_on:
+      - supabase-meta
+
+  redis:
+    image: redis:8.6-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Define REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
 volumes:
-  pgdata:
-  uploads:
+  app-uploads:
+  supabase-db-data:
+  redis-data:

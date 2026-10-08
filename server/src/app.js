@@ -8,6 +8,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { HttpError } = require('./utils/http');
+const { rateLimitStore, redisHealthy } = require('./infra/redis');
+const { db } = require('./db');
 const { authOptional, requireStaff } = require('./middleware/auth');
 const { getSettings, publicSettings } = require('./modules/settings/service');
 const { getVapid } = require('./modules/notifications/push');
@@ -53,7 +55,19 @@ function createApp() {
   app.use(cookieParser());
   app.use(express.json({ limit: '9mb' }));
 
-  app.get('/healthz', (_req, res) => res.json({ ok: true }));
+  // Salud para Dokploy / balanceadores: verifica base de datos y Redis.
+  app.get('/healthz', async (_req, res) => {
+    let database = false;
+    try {
+      await db.raw('select 1');
+      database = true;
+    } catch {
+      database = false;
+    }
+    const redis = await redisHealthy();
+    const ok = database && redis !== false;
+    res.status(ok ? 200 : 503).json({ ok, database, redis: redis === null ? 'no configurado' : redis });
+  });
 
   const api = express.Router();
   api.use(
@@ -63,6 +77,7 @@ function createApp() {
       standardHeaders: 'draft-7',
       legacyHeaders: false,
       skip: () => config.isTest,
+      store: rateLimitStore('api'),
       message: { error: 'Demasiadas solicitudes. Intenta en un momento.' },
     })
   );

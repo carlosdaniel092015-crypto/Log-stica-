@@ -4,3 +4,4 @@ server/data/
 .env
 *.log
 .DS_Store
+.sandbox-ca.crt

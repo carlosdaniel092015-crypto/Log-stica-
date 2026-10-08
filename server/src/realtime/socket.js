@@ -5,6 +5,7 @@ const { resolveSession } = require('../middleware/auth');
 const { resolveToken } = require('../modules/tracking/links');
 const { publicView } = require('../modules/tracking/service');
 const hub = require('./hub');
+const { getRedis } = require('../infra/redis');
 
 function parseCookies(header) {
   const out = {};
@@ -57,6 +58,22 @@ function attachRealtime(httpServer) {
       }
     });
   });
+
+  // Con Redis, los eventos llegan a los clientes conectados a cualquier instancia.
+  const redis = getRedis();
+  if (redis) {
+    const { createAdapter } = require('@socket.io/redis-adapter');
+    const pub = redis.duplicate();
+    const sub = redis.duplicate();
+    pub.on('error', (err) => console.warn('[redis pub]', err.message));
+    sub.on('error', (err) => console.warn('[redis sub]', err.message));
+    Promise.all([pub.connect(), sub.connect()])
+      .then(() => {
+        io.adapter(createAdapter(pub, sub));
+        console.log('Socket.IO usando Redis (multi-instancia).');
+      })
+      .catch((err) => console.warn('[redis] Adaptador de Socket.IO no disponible:', err.message));
+  }
 
   hub.setIO(io);
   return io;

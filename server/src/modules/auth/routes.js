@@ -8,6 +8,7 @@ const { ah, unauthorized, badRequest, forbidden } = require('../../utils/http');
 const { validate } = require('../../middleware/validate');
 const { signSession, setSessionCookie, clearSessionCookie, requireAuth } = require('../../middleware/auth');
 const { audit } = require('../audit/service');
+const { rateLimitStore } = require('../../infra/redis');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en unos minutos.' },
   skip: () => process.env.NODE_ENV === 'test',
+  store: rateLimitStore('login'),
 });
 
 const DUMMY_HASH = bcrypt.hashSync('dummy-password', 12);

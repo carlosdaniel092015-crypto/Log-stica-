@@ -13,12 +13,13 @@ const { notify } = require('../notifications/service');
 const { priceAddress, insertHistory } = require('../orders/service');
 const maps = require('../maps/google');
 const events = require('../orders/events');
+const { rateLimitStore } = require('../../infra/redis');
 
 const router = express.Router();
 const isTest = () => process.env.NODE_ENV === 'test';
 
-const readLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false, skip: isTest, message: { error: 'Demasiadas solicitudes. Intenta en un momento.' } });
-const writeLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false, skip: isTest, message: { error: 'Demasiadas solicitudes. Intenta en un momento.' } });
+const readLimiter = rateLimit({ store: rateLimitStore('track-read'), windowMs: 60_000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false, skip: isTest, message: { error: 'Demasiadas solicitudes. Intenta en un momento.' } });
+const writeLimiter = rateLimit({ store: rateLimitStore('track-write'), windowMs: 60_000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false, skip: isTest, message: { error: 'Demasiadas solicitudes. Intenta en un momento.' } });
 
 async function load(req) {
   const found = await resolveToken(req.params.token, { touch: req.method === 'GET' });

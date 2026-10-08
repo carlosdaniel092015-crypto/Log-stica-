@@ -56,6 +56,12 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 - Provincias, municipios, distritos municipales y sectores, todos editables.
 - Usuarios, roles y permisos, auditoría y **Configuración › Logística**.
 
+**Inventario** (`/admin/inventario`)
+- Productos con existencia en almacén, inventario asignado a cada mensajero y devoluciones.
+- Al marcar **Entregado**, se descuentan del inventario del mensajero los productos del pedido y se crea una **solicitud** que el administrador **aprueba** o rechaza (si la rechaza, el inventario vuelve al mensajero). Sin inventario suficiente no se puede marcar como entregado.
+- El mensajero puede **solicitar inventario** indicando cantidades; el administrador las aprueba ajustándolas si hace falta.
+- **En vivo y sin recargar**: los pedidos entregados se resaltan en **verde** y los no entregados en **rojo** (lista de pedidos, avisos emergentes y feed "Entregas en vivo"). Se guarda el historial de movimientos.
+
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
 - **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA, LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
@@ -92,7 +98,7 @@ server/   Node.js + Express 5 + Socket.IO + Knex
   src/db/          migraciones (SQLite o PostgreSQL) y datos de ejemplo de RD
 ```
 
-**Base de datos.** Tablas: `users`, `roles`, `customers`, `customer_addresses`, `couriers`, `courier_locations`, `orders`, `order_status_history`, `delivery_assignments`, `delivery_proofs`, `delivery_zones`, `delivery_rates`, `provinces`, `municipalities`, `sectors`, `tracking_links`, `notifications`, `push_subscriptions`, `audit_logs`, `settings` y `branches` (preparada para varias sucursales). Todas usan UUID, claves foráneas, índices y timestamps. **Ninguna provincia, sector ni precio está escrito en el código**: los datos de ejemplo están en `server/src/db/seeds/data/dominican-republic.json` y todo se edita desde el panel.
+**Base de datos.** Tablas: `products`, `courier_stock`, `order_items`, `inventory_requests`, `inventory_request_items`, `inventory_movements`, `users`, `roles`, `customers`, `customer_addresses`, `couriers`, `courier_locations`, `orders`, `order_status_history`, `delivery_assignments`, `delivery_proofs`, `delivery_zones`, `delivery_rates`, `provinces`, `municipalities`, `sectors`, `tracking_links`, `notifications`, `push_subscriptions`, `audit_logs`, `settings` y `branches` (preparada para varias sucursales). Todas usan UUID, claves foráneas, índices y timestamps. **Ninguna provincia, sector ni precio está escrito en el código**: los datos de ejemplo están en `server/src/db/seeds/data/dominican-republic.json` y todo se edita desde el panel.
 
 **Detección de zona y precio** (siempre en el servidor):
 1. La dirección se resuelve a provincia, municipio y sector a partir de los componentes de Google. Si no coinciden, se usa el centroide registrado más cercano, marcado como aproximado.
@@ -152,16 +158,42 @@ También necesitas `GOOGLE_MAPS_MAP_ID`, un Map ID de tipo JavaScript para los m
 
 ---
 
-## Producción
+## Despliegue en Dokploy (todo incluido)
+
+El `docker-compose.yml` levanta **todo el sistema** con un solo despliegue:
+
+| Servicio | Qué es | Acceso |
+|---|---|---|
+| `app` | Aplicación (API, frontend, tiempo real) | Dominio público que asignes en Dokploy → puerto **3000** |
+| `supabase-db` | Base de datos **Supabase** (PostgreSQL 15 con extensiones de Supabase) | Solo red interna |
+| `supabase-meta` | API de metadatos de Supabase | Solo red interna |
+| `supabase-studio` | Panel de **Supabase Studio** para ver y editar tablas y ejecutar SQL | Solo `127.0.0.1:3001` del servidor |
+| `redis` | **Redis**: tiempo real con varias instancias y límite de peticiones compartido | Solo red interna |
+
+Pasos:
+1. En Dokploy: **Create Service → Compose**, elige este repositorio y la rama. El archivo es `docker-compose.yml`.
+2. En **Environment**, pega el contenido de `.env.dokploy.example` y cambia todos los secretos. Puedes generarlos con `openssl rand -hex 32`.
+3. En **Domains**, agrega tu dominio al servicio **app**, puerto **3000**, con HTTPS (Let's Encrypt). Dokploy configura Traefik.
+4. **Deploy**. Al arrancar, la app aplica las migraciones en Supabase y crea el primer administrador (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). Con `LOAD_DEMO_DATA=true` carga los datos de ejemplo, solo si la base está vacía.
+5. Comprueba `https://tu-dominio/healthz`: debe responder `{"ok":true,"database":true,"redis":true}`.
+
+Supabase Studio no tiene inicio de sesión propio, así que **no se publica en internet**. Para usarlo, abre un túnel SSH y entra a `http://localhost:3001`:
 
 ```bash
-cp .env.example .env    # define JWT_SECRET, DATA_ENCRYPTION_KEY, PUBLIC_BASE_URL, claves de Google y ADMIN_*
-POSTGRES_PASSWORD=... docker compose up -d --build
+ssh -L 3001:127.0.0.1:3001 usuario@tu-servidor
 ```
 
-Coloca un proxy con HTTPS delante (Nginx, Caddy, Traefik o el balanceador de tu proveedor) que permita **WebSockets** (`/socket.io`). Las migraciones se aplican al iniciar el servidor. Si `ADMIN_EMAIL` y `ADMIN_PASSWORD` están definidos y la base está vacía, se crea el primer administrador.
+Ahí verás todas las tablas de la plataforma (pedidos, inventario, zonas, etc.).
 
-Para escalar a varias instancias, usa el adaptador de Redis de Socket.IO y guarda las evidencias en un almacenamiento de objetos (S3 o GCS).
+Los datos quedan en volúmenes de Docker (`supabase-db-data`, `redis-data`, `app-uploads`) y se conservan entre despliegues. Para un respaldo de la base:
+
+```bash
+docker compose exec supabase-db pg_dump -U postgres postgres > respaldo.sql
+```
+
+**¿Supabase en la nube en lugar del contenedor?** Quita los servicios `supabase-*` y define `DATABASE_URL` con la cadena de conexión de tu proyecto y `DB_SSL=true`.
+
+**Otros servidores con Docker (sin Dokploy):** `docker compose --env-file .env up -d --build`, con un proxy HTTPS delante que permita WebSockets (`/socket.io`).
 
 ## Preparado para crecer
 

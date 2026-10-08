@@ -12,7 +12,8 @@ function knexConfig() {
     return {
       ...common,
       client: 'pg',
-      connection: config.db.url,
+      // Supabase gestionado (nube) exige SSL: DB_SSL=true. El Supabase del docker-compose no lo necesita.
+      connection: config.db.ssl ? { connectionString: config.db.url, ssl: { rejectUnauthorized: false } } : config.db.url,
       pool: { min: 1, max: 10 },
     };
   }

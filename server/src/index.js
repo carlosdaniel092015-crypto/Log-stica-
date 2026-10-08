@@ -5,10 +5,11 @@ const { db } = require('./db');
 const { createApp } = require('./app');
 const { attachRealtime } = require('./realtime/socket');
 const { pruneLocations } = require('./modules/couriers/service');
-const { ensureFirstAdmin } = require('./db/bootstrap');
+const { ensureFirstAdmin, loadDemoDataIfEmpty } = require('./db/bootstrap');
 
 async function main() {
   await db.migrate.latest();
+  await loadDemoDataIfEmpty();
   await ensureFirstAdmin();
   const app = createApp();
   const server = http.createServer(app);
@@ -25,7 +26,7 @@ async function main() {
   });
 
   const shutdown = () => {
-    server.close(() => db.destroy().then(() => process.exit(0)));
+    server.close(() => Promise.all([db.destroy(), require('./infra/redis').closeRedis()]).then(() => process.exit(0)));
     setTimeout(() => process.exit(0), 5000).unref();
   };
   process.on('SIGINT', shutdown);

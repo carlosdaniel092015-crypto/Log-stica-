@@ -27,6 +27,7 @@ const config = {
   db: {
     client: env.DB_CLIENT || 'better-sqlite3',
     url: env.DATABASE_URL || '',
+    ssl: env.DB_SSL === 'true',
     sqliteFile: env.SQLITE_FILE || path.resolve(__dirname, '../data/logistica.sqlite'),
   },
 
@@ -50,6 +51,8 @@ const config = {
     privateKey: env.VAPID_PRIVATE_KEY || '',
     subject: env.VAPID_SUBJECT || 'mailto:soporte@example.com',
   },
+
+  redisUrl: env.REDIS_URL || '',
 
   uploadsDir: env.UPLOADS_DIR || path.resolve(__dirname, '../data/uploads'),
   clientDist: path.resolve(__dirname, '../../client/dist'),
