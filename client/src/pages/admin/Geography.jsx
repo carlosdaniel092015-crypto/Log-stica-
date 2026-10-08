@@ -52,7 +52,7 @@ function Column({ title, items, selected, onSelect, onAdd, onEdit, onDelete, edi
       <div style={{ overflowY: 'auto', padding: 6 }}>
         {shown.map((i) => (
           <div key={i.id} className={`list-item geo-item ${onSelect ? 'clickable' : ''} ${selected === i.id ? 'selected' : ''}`} style={{ opacity: i.active ? 1 : 0.5, border: 0 }} onClick={() => onSelect?.(i.id)}>
-            <span className="spacer ellipsis" style={{ color: selected === i.id ? 'var(--primary)' : undefined, fontWeight: selected === i.id ? 650 : 400 }}>{render ? render(i) : i.name}</span>
+            <span className="spacer" style={{ minWidth: 0, overflowWrap: 'anywhere', lineHeight: 1.3, color: selected === i.id ? 'var(--primary)' : undefined, fontWeight: selected === i.id ? 650 : 400 }}>{render ? render(i) : i.name}</span>
             {side?.(i)}
             {editable && (
               <span className="geo-actions">
@@ -69,13 +69,13 @@ function Column({ title, items, selected, onSelect, onAdd, onEdit, onDelete, edi
 }
 
 export default function Geography() {
-  const { user, currency } = useApp();
+  const { user, currency, toast } = useApp();
   const editable = can(user, 'zones.manage');
   const tree = useAsync(() => getGeoTree(true), []);
   const [province, setProvince] = useState(null);
   const [municipality, setMunicipality] = useState(null);
   const [modal, setModal] = useState(null);
-  const [, run] = useAction();
+  const [busy, run] = useAction();
   const prices = useAsync(() => (municipality ? api.get(`/api/geo/sector-prices?municipality_id=${municipality}`) : Promise.resolve([])), [municipality]);
   const t = tree.data;
   const municipalities = useMemo(() => (t?.municipalities || []).filter((m) => m.province_id === province), [t, province]);
@@ -85,13 +85,26 @@ export default function Geography() {
   const priceOf = (id) => (prices.data || []).find((p) => p.sector_id === id);
   const provName = t.provinces.find((p) => p.id === province)?.name;
   const muniName = t.municipalities.find((m) => m.id === municipality)?.name;
+  const loadBase = () => run(async () => {
+    const r = await api.post('/api/geo/load-base');
+    await tree.reload(true);
+    return r;
+  }).then((r) => r && toast(r.provinces + r.municipalities + r.sectors ? `Se agregaron ${r.provinces} provincias, ${r.municipalities} municipios y ${r.sectors} sectores.` : 'Ya tenías toda la división territorial cargada.', { type: 'success' }));
   const del = (table, item) => window.confirm(`¿Eliminar "${item.name}"?`) && run(async () => { await api.del(`/api/geo/${table}/${item.id}`); tree.reload(true); }, 'Eliminado.');
 
   return (
     <div>
       <div className="page-header">
         <div><h1>Provincias y sectores</h1><p>Selecciona una provincia y un municipio para ver sus sectores y la tarifa que aplica</p></div>
+        {editable && <button className="btn" onClick={loadBase} disabled={busy}><Icon name="download" /> Cargar división territorial de RD</button>}
       </div>
+      {editable && t.provinces.length === 0 && (
+        <div className="banner info" style={{ marginBottom: 14 }}>
+          <span className="banner-icon"><Icon name="globe" size={18} /></span>
+          <div className="spacer"><strong>Aún no hay provincias.</strong> Carga las 32 provincias y 158 municipios de RD (ONE 2021) y los sectores principales con un clic. Luego puedes agregar tus sectores.</div>
+          <button className="btn btn-sm btn-primary" onClick={loadBase} disabled={busy}>Cargar ahora</button>
+        </div>
+      )}
       <div className="grid grid-3" style={{ alignItems: 'start' }}>
         <Column title="Provincias" items={t.provinces} selected={province} editable={editable} emptyText="Sin provincias"
           onSelect={(id) => { setProvince(id); setMunicipality(null); }} onAdd={() => setModal({ table: 'provinces' })} onEdit={(i) => setModal({ table: 'provinces', item: i })} onDelete={(i) => del('provinces', i)}
@@ -102,10 +115,10 @@ export default function Geography() {
           side={(m) => <span className="tiny muted nowrap">{count(t.sectors, 'municipality_id', m.id)} sectores</span>} />
         <Column title={`Sectores${muniName ? ` · ${muniName}` : ''}`} items={sectors} editable={editable} emptyText="Selecciona un municipio"
           onAdd={municipality ? () => setModal({ table: 'sectors', parent: municipality }) : null} onEdit={(i) => setModal({ table: 'sectors', item: i })} onDelete={(i) => del('sectors', i)}
-          render={(s) => <span className="row" style={{ gap: 8 }}><span className="color-dot" style={{ width: 8, height: 8, background: 'var(--st-rescheduled)' }} />{s.name}</span>}
+          render={(s) => <span className="row" style={{ gap: 8, alignItems: 'baseline' }}><span className="color-dot" style={{ width: 8, height: 8, flex: 'none', background: 'var(--st-rescheduled)' }} />{s.name}</span>}
           side={(s) => {
             const p = priceOf(s.id);
-            return <span style={{ textAlign: 'right' }}><strong className="mono" style={{ display: 'block' }}>{p?.fee != null ? money(p.fee, currency) : '—'}</strong><span className="tiny muted">{p?.zone_name || 'Sin zona'}</span></span>;
+            return <span style={{ textAlign: 'right', flex: 'none' }}><strong className="mono" style={{ display: 'block' }}>{p?.fee != null ? money(p.fee, currency) : '—'}</strong><span className="tiny muted">{p?.zone_name || 'Sin zona'}</span></span>;
           }} />
       </div>
       {modal && <GeoModal {...modal} onClose={() => setModal(null)} onSaved={() => { setModal(null); tree.reload(true); prices.reload(true); }} />}

@@ -11,6 +11,7 @@ const { normalizeName } = require('../../utils/geo');
 const { toCsv, parseCsv } = require('../../utils/csv');
 const { ZONE_KINDS, listZones, getZone, quote, setRate } = require('./service');
 const { priceAddress } = require('../orders/service');
+const { loadSuggestedZones } = require('../geo/base');
 
 const router = express.Router();
 router.use(requireStaff);
@@ -95,6 +96,16 @@ router.get('/export', ah(async (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="tarifas.csv"');
   res.send(toCsv(headers, rows));
+}));
+
+/** Tarifas sugeridas para empezar: crea solo las zonas que aún no existen (por nombre). */
+router.post('/load-suggested', requirePermission('zones.manage'), ah(async (req, res) => {
+  const result = await db.transaction(async (trx) => {
+    const r = await loadSuggestedZones(trx, req.user.id);
+    await audit(req, { action: 'zone.load_suggested', entity: 'zone', newValue: r }, trx);
+    return r;
+  });
+  res.json(result);
 }));
 
 router.post('/import', requirePermission('zones.manage'), validate(z.object({ content: z.string().max(2_000_000) })), ah(async (req, res) => {

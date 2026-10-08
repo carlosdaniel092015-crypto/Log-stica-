@@ -90,3 +90,23 @@ test('factura PDF: admin y el mensajero del pedido; nadie más', async () => {
   assert.equal(bad.status, 400, 'RNC inválido');
   assert.equal((await admin.put('/api/settings').send({ company_rnc: '' })).status, 200, 'RNC es opcional');
 });
+
+test('división territorial completa de RD y tarifas sugeridas', async () => {
+  const tree = (await admin.get('/api/geo/tree')).body;
+  assert.equal(tree.provinces.length, 32, '32 provincias (incluye el Distrito Nacional)');
+  assert.ok(tree.municipalities.filter((m) => m.kind === 'municipio').length >= 158, '158 municipios (ONE 2021)');
+  assert.ok(tree.municipalities.every((m) => m.lat != null && m.lng != null), 'todos con coordenadas');
+  const santiago = tree.provinces.find((p) => p.name === 'Santiago');
+  assert.equal(tree.municipalities.filter((m) => m.province_id === santiago.id).length, 10);
+
+  // Cargar de nuevo no duplica nada.
+  const again = (await admin.post('/api/geo/load-base')).body;
+  assert.deepEqual(again, { provinces: 0, municipalities: 0, sectors: 0 });
+  assert.equal((await juan.post('/api/geo/load-base')).status, 403);
+
+  const first = (await admin.post('/api/zones/load-suggested')).body;
+  assert.ok(first.created >= 1);
+  assert.equal((await admin.post('/api/zones/load-suggested')).body.created, 0, 'no duplica zonas');
+  const zones = (await admin.get('/api/zones')).body;
+  assert.ok(zones.some((z) => z.name === 'Santo Domingo Oeste' && z.price === 250));
+});

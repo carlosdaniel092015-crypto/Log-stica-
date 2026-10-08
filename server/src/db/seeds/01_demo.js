@@ -6,6 +6,7 @@
  */
 const bcrypt = require('bcryptjs');
 const geoData = require('./data/dominican-republic.json');
+const { loadBaseGeography } = require('../../modules/geo/base');
 const { uuid, randomToken, sha256, encrypt } = require('../../utils/crypto');
 
 const TABLES_IN_DELETE_ORDER = [
@@ -33,22 +34,12 @@ exports.seed = async function seed(knex) {
   const ts = new Date().toISOString();
   const stamp = { created_at: ts, updated_at: ts };
 
-  // --- Geografía ---
-  const provinceIds = {};
-  for (const p of geoData.provinces) {
-    provinceIds[p.name] = uuid();
-    await knex('provinces').insert({ id: provinceIds[p.name], name: p.name, code: p.code, lat: p.lat, lng: p.lng, active: true, ...stamp });
-  }
-  const municipalityIds = {};
-  for (const m of geoData.municipalities) {
-    municipalityIds[m.name] = uuid();
-    await knex('municipalities').insert({ id: municipalityIds[m.name], province_id: provinceIds[m.province], name: m.name, kind: m.kind, lat: m.lat, lng: m.lng, active: true, ...stamp });
-  }
-  const sectorIds = {};
-  for (const s of geoData.sectors) {
-    sectorIds[s.name] = uuid();
-    await knex('sectors').insert({ id: sectorIds[s.name], municipality_id: municipalityIds[s.municipality], name: s.name, lat: s.lat, lng: s.lng, active: true, ...stamp });
-  }
+  // --- Geografía (la misma división territorial que se carga en producción) ---
+  await loadBaseGeography(knex);
+  const byName = (rows) => Object.fromEntries(rows.map((r) => [r.name, r.id]));
+  const provinceIds = byName(await knex('provinces').select('id', 'name'));
+  const municipalityIds = byName(await knex('municipalities').select('id', 'name'));
+  const sectorIds = byName(await knex('sectors').select('id', 'name'));
 
   // --- Sucursal ---
   const branchId = uuid();

@@ -518,10 +518,11 @@ gmp-place-autocomplete { width: 100%; }
 .map-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 0.8rem; font-weight: 650; color: var(--text); }
 .map-chip svg { color: var(--primary); }
 .map.card { padding: 0; }
-.geo-item { border-radius: 10px; margin-bottom: 2px; }
-.geo-actions { display: inline-flex; opacity: 0; transition: opacity 0.15s; }
-.geo-item:hover .geo-actions, .geo-item:focus-within .geo-actions { opacity: 1; }
-@media (hover: none) { .geo-actions { opacity: 1; } }
+.geo-item { border-radius: 10px; margin-bottom: 2px; position: relative; }
+/* Con ratón, los botones aparecen encima al pasar el cursor y no le quitan espacio al nombre. */
+.geo-actions { display: inline-flex; opacity: 0; transition: opacity 0.15s; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: var(--surface); border-radius: 8px; box-shadow: 0 2px 8px rgb(15 23 42 / 0.12); pointer-events: none; }
+.geo-item:hover .geo-actions, .geo-item:focus-within .geo-actions { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .geo-actions { opacity: 1; position: static; transform: none; box-shadow: none; background: none; pointer-events: auto; } }
 
 /* ---------- App del mensajero (diseño) ---------- */
 .seg-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 5px; }

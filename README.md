@@ -67,6 +67,11 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 - **Mensajeros con clave temporal:** la empresa los crea desde *Mensajeros → Nuevo mensajero* o desde *Usuarios*, con una clave generada. Se puede enviar al mensajero por WhatsApp o copiar. Al iniciar sesión por primera vez, el mensajero debe elegir su propia clave. Hasta entonces, el servidor bloquea el resto de la API y el tiempo real. Restablecer la clave desde *Usuarios* vuelve a crear una clave temporal.
 - **Factura en PDF** con logo, nombre de la empresa, RNC (si existe), cliente, productos, envío, total y tipo de pago. Se envía desde el detalle del pedido (panel) o desde la tarjeta e historial del mensajero. En el teléfono abre el menú de compartir (WhatsApp, correo…) con el PDF adjunto; en computadora se descarga. No sustituye un comprobante fiscal (NCF).
 
+**Geografía y tarifas listas para usar**
+- En una instalación nueva se cargan solas las **32 provincias y los 158 municipios de RD** (ONE, División Territorial 2021), los distritos municipales del Gran Santo Domingo y Punta Cana, y los sectores principales. Desde *Provincias y sectores* puedes agregar o editar los tuyos. El botón **Cargar división territorial de RD** completa lo que falte sin tocar lo que ya editaste.
+- En *Tarifas de entrega* o *Zonas en el mapa*, **Cargar tarifas sugeridas** crea zonas con precio para el Gran Santo Domingo, Haina y Santiago. Después ajustas los precios a los tuyos.
+- Fuentes: ONE (vía el paquete `dominican-republic-geodata`, MIT) y coordenadas de GeoNames (CC BY 4.0). Algunas cabeceras municipales tienen coordenadas aproximadas.
+
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
 - **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA (abre la navegación en **Google Maps o Waze**, a elección del mensajero, y recuerda la última app usada), LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
