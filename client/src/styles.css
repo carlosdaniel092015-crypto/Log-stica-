@@ -570,3 +570,8 @@ gmp-place-autocomplete { width: 100%; }
 .share-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .share-row .btn-share { white-space: nowrap; min-width: 0; padding-inline: 10px; overflow: hidden; text-overflow: ellipsis; }
 .maplibregl-popup-close-button { border: 0 !important; background: none !important; box-shadow: none !important; font-size: 18px; line-height: 1; padding: 2px 7px; color: #64748b; min-height: 0; }
+
+/* ---------- Pegar ubicación de WhatsApp / Google Maps ---------- */
+.paste-location { display: grid; gap: 6px; padding: 10px; border: 1px dashed color-mix(in srgb, var(--primary) 45%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }

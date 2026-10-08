@@ -72,6 +72,10 @@ Cubren autenticación, permisos por rol (los clientes no tienen cuenta), detecci
 - En *Tarifas de entrega* o *Zonas en el mapa*, **Cargar tarifas sugeridas** crea zonas con precio para el Gran Santo Domingo, Haina y Santiago. Después ajustas los precios a los tuyos.
 - Fuentes: ONE (vía el paquete `dominican-republic-geodata`, MIT) y coordenadas de GeoNames (CC BY 4.0). Algunas cabeceras municipales tienen coordenadas aproximadas.
 
+**Ubicación que envía el cliente por WhatsApp**
+- En *Nuevo pedido → Dirección*, pega en **"Pega aquí la ubicación que envió el cliente"** el enlace que llega por WhatsApp (ej. `https://www.google.com/maps?q=18.5175,-70.0450`). También sirven enlaces de Google Maps (incluidos los cortos `maps.app.goo.gl`), Waze, Apple Maps o coordenadas escritas. El pin se ubica solo y se llenan la provincia, el municipio, el sector, el precio y la dirección escrita.
+- La dirección escrita sale de Google si configuras `GOOGLE_MAPS_SERVER_KEY`. Si no, sale de OpenStreetMap (Nominatim, gratis, máximo 1 consulta por segundo). Para desactivar OpenStreetMap usa `OSM_GEOCODER=false`.
+
 **Mensajero** (`/mensajero`, diseño mobile-first)
 - Iniciar y terminar la jornada, con el permiso de ubicación pedido de forma explícita. Indicador **UBICACIÓN ACTIVA** y botón **DEJAR DE COMPARTIR UBICACIÓN**.
 - **MIS ENTREGAS**, ordenadas por orden asignado, prioridad o cercanía. Botones VER MAPA, INICIAR RUTA (abre la navegación en **Google Maps o Waze**, a elección del mensajero, y recuerda la última app usada), LLAMAR, WHATSAPP, **VOY HACIA ESTE CLIENTE**, LLEGUÉ, ENTREGADO y NO ENTREGADO.
