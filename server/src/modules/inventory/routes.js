@@ -91,7 +91,8 @@ router.delete('/products/:id', ah(async (req, res) => {
   const used = (await db('order_items').where({ product_id: p.id }).first('id'))
     || (await db('courier_stock').where({ product_id: p.id }).where('quantity', '>', 0).first('id'))
     || (await db('inventory_request_items').where({ product_id: p.id }).first('id'));
-  if (used) throw conflict('Este producto ya tiene pedidos, inventario asignado o solicitudes. Desactívalo en lugar de eliminarlo.');
+  // Con historial no se borra (los pedidos y movimientos lo siguen nombrando): se ofrece ocultarlo.
+  if (used) throw conflict('Este producto ya tiene pedidos, inventario asignado o solicitudes. Desactívalo en lugar de eliminarlo.', { code: 'in_use', active: !!p.active });
   await db.transaction(async (trx) => {
     await trx('inventory_movements').where({ product_id: p.id }).del();
     await trx('courier_stock').where({ product_id: p.id }).del();
