@@ -172,7 +172,7 @@ export function OutcomeFeed({ limit = 50 }) {
 }
 
 export default function Inventory() {
-  const { currency } = useApp();
+  const { currency, toast } = useApp();
   const [params] = useSearchParams();
   const [tab, setTab] = useState(params.get('tab') || 'products');
   const overview = useAsync(() => api.get('/api/inventory/overview'), []);
@@ -181,6 +181,21 @@ export default function Inventory() {
   const [modal, setModal] = useState(null);
   const [productModal, setProductModal] = useState(null);
   const [busy, run] = useAction();
+  const [showInactive, setShowInactive] = useState(false);
+  // Si el producto tiene historial no se puede borrar sin perderlo: se ofrece ocultarlo (desactivarlo).
+  const removeProduct = async (p) => {
+    if (!window.confirm(`¿Eliminar "${p.name}"?`)) return;
+    try {
+      await api.del(`/api/inventory/products/${p.id}`);
+      toast('Producto eliminado.', { type: 'success' });
+      refresh();
+    } catch (err) {
+      if (err.details?.code !== 'in_use') return toast(err.message, { type: 'error', title: 'No se pudo completar' });
+      if (!p.active) return toast('Este producto ya está oculto. Se conserva porque aparece en pedidos o movimientos anteriores.', { type: 'info' });
+      const hide = window.confirm(`"${p.name}" no se puede eliminar porque aparece en pedidos, inventario o solicitudes anteriores (se perdería ese historial).\n\n¿Quieres ocultarlo? Dejará de aparecer en la lista, en los pedidos nuevos y en los avisos de inventario. Podrás verlo con "Ver inactivos".`);
+      if (hide) run(async () => { await api.put(`/api/inventory/products/${p.id}`, { active: false }); refresh(); }, 'Producto ocultado.');
+    }
+  };
 
   // Todo se actualiza solo: inventario, solicitudes y movimientos.
   const refresh = () => {
@@ -276,7 +291,10 @@ export default function Inventory() {
       {tab === 'products' && (
         <div className="stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="small muted">{products.length} productos · recibes un aviso cuando el almacén llega al mínimo</span>
+            <span className="small muted">
+              {products.filter((p) => p.active).length} productos · recibes un aviso cuando el almacén llega al mínimo
+              {products.some((p) => !p.active) && <> · <button type="button" className="btn btn-sm btn-ghost" style={{ padding: '2px 6px', minHeight: 0 }} onClick={() => setShowInactive((v) => !v)}>{showInactive ? 'Ocultar inactivos' : `Ver inactivos (${products.filter((p) => !p.active).length})`}</button></>}
+            </span>
             <button className="btn btn-primary" onClick={() => setProductModal({})}><Icon name="plus" /> Nuevo producto</button>
           </div>
           <div className="card">
@@ -284,7 +302,7 @@ export default function Inventory() {
               <table className="table">
                 <thead><tr><th>SKU</th><th>Producto</th><th className="num">Precio</th><th style={{ textAlign: 'center' }}>En almacén</th><th className="num">Con mensajeros</th><th className="num">Total</th><th className="num">Mínimo</th><th /></tr></thead>
                 <tbody>
-                  {products.map((p) => {
+                  {products.filter((p) => p.active || showInactive).map((p) => {
                     const withCouriers = couriers.reduce((sum, c) => sum + (c.stock[p.id] || 0), 0);
                     return (
                       <tr key={p.id} className={p.low_stock ? 'row-warn' : ''} style={{ opacity: p.active ? 1 : 0.55 }}>
@@ -300,7 +318,7 @@ export default function Inventory() {
                         <td className="nowrap">
                           <span className="icon-btn-group">
                             <button className="btn btn-sm btn-icon" onClick={() => setProductModal(p)} aria-label="Editar"><Icon name="edit" /></button>
-                            <button className="btn btn-sm btn-icon" style={{ color: 'var(--danger)' }} aria-label="Eliminar" onClick={() => window.confirm(`¿Eliminar "${p.name}"?`) && run(async () => { await api.del(`/api/inventory/products/${p.id}`); refresh(); }, 'Producto eliminado.')}><Icon name="trash" /></button>
+                            <button className="btn btn-sm btn-icon" style={{ color: 'var(--danger)' }} aria-label="Eliminar" onClick={() => removeProduct(p)}><Icon name="trash" /></button>
                           </span>
                         </td>
                       </tr>

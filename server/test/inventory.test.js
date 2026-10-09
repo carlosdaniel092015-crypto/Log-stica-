@@ -134,3 +134,15 @@ test('el mensajero no puede usar la administración de inventario', async () => 
   assert.equal((await juan.get('/api/inventory/overview')).status, 403);
   assert.equal((await juan.post(`/api/inventory/couriers/${juanId}/assign`).send({ items: [{ product_id: product.id, quantity: 1 }] })).status, 403);
 });
+
+test('un producto con historial no se borra: se puede ocultar y deja de avisar', async () => {
+  const del = await admin.delete(`/api/inventory/products/${product.id}`);
+  assert.equal(del.status, 409);
+  assert.equal(del.body.details.code, 'in_use');
+  const hidden = await admin.put(`/api/inventory/products/${product.id}`).send({ active: false });
+  assert.equal(hidden.status, 200);
+  assert.equal((await admin.get('/api/inventory/products')).body.find((p) => p.id === product.id).active, false);
+  // Un producto nuevo sin historial sí se elimina.
+  const fresh = (await admin.post('/api/inventory/products').send({ sku: 'TMP-DEL', name: 'Temporal', price: 10, warehouse_stock: 0 })).body;
+  assert.equal((await admin.delete(`/api/inventory/products/${fresh.id}`)).status, 200);
+});
