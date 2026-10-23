@@ -5,7 +5,7 @@ import { courierColor, initials } from '../../lib/maps';
 import { getCurrentPosition, geoPermissionState } from '../../lib/geolocation';
 import { CourierBadge, Empty, Field, Modal, OnlineIndicator, Spinner, StatusBadge, useAction, useAsync, useSocketEvent } from '../../components/ui';
 import { MapView } from '../../components/Map';
-import SignaturePad, { compressImage } from '../../components/SignaturePad';
+import { compressImage } from '../../components/SignaturePad';
 import { InstallBanner, PushButton } from '../../components/pwa';
 import Icon from '../../components/Icon';
 import InvoiceButtons from '../../components/InvoiceButtons';
@@ -77,19 +77,15 @@ function ShiftStart({ onStart, busy }) {
 function OutcomeModal({ order, initial, settings, latest, onClose, onDone }) {
   const { currency } = useApp();
   const [outcome, setOutcome] = useState(initial);
-  const [receiver, setReceiver] = useState('');
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState(null);
-  const [signature, setSignature] = useState(null);
   const [cash, setCash] = useState(order.payment_method === 'cash' && order.payment_status !== 'paid');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const onSignature = useCallback((v) => setSignature(v), []);
 
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
-    if (outcome === 'delivered' && settings.proof_required && !receiver.trim()) return setError('Indica el nombre de quien recibió.');
     if (outcome !== 'delivered' && !notes.trim()) return setError('Describe brevemente el motivo.');
     setBusy(true);
     try {
@@ -99,7 +95,7 @@ function OutcomeModal({ order, initial, settings, latest, onClose, onDone }) {
         note: notes || undefined,
         ...(coords ? { lat: coords.lat, lng: coords.lng, accuracy: coords.accuracy ?? undefined } : {}),
         cash_collected: outcome === 'delivered' ? cash : undefined,
-        proof: { receiver_name: receiver || undefined, notes: notes || undefined, photo: photo || undefined, signature: signature || undefined },
+        proof: { receiver_name: outcome === 'delivered' ? order.customer_name : undefined, notes: notes || undefined, photo: photo || undefined },
       };
       const r = await postOrQueue(`/api/courier/orders/${order.id}/status`, body, `#${order.order_number}: ${outcome}`);
       onDone(r, outcome);
@@ -121,19 +117,14 @@ function OutcomeModal({ order, initial, settings, latest, onClose, onDone }) {
         </div>
         {outcome === 'delivered' ? (
           <>
-            <Field label={`Nombre de quien recibió${settings.proof_required ? ' *' : ''}`}><input className="input" value={receiver} onChange={(e) => setReceiver(e.target.value)} autoFocus /></Field>
+            <div className="field"><span>Entregado a</span><strong>{order.customer_name}</strong></div>
             {order.payment_method === 'cash' && order.payment_status !== 'paid' && (
               <label className="check"><input type="checkbox" checked={cash} onChange={(e) => setCash(e.target.checked)} /> Cobré {money(order.total, currency)} en efectivo</label>
             )}
-            {settings.proof_photo_enabled && (
-              <Field label="Fotografía (opcional)">
-                <input className="input" type="file" accept="image/*" capture="environment" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhoto(await compressImage(f)); }} />
-                {photo && <img className="photo-preview" src={photo} alt="Vista previa" />}
-              </Field>
-            )}
-            {settings.proof_signature_enabled && (
-              <div className="field"><span>Firma (opcional)</span><SignaturePad onChange={onSignature} /></div>
-            )}
+            <Field label="Fotografía (opcional)">
+              <input className="input" type="file" accept="image/*" capture="environment" onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPhoto(await compressImage(f)); }} />
+              {photo && <img className="photo-preview" src={photo} alt="Vista previa" />}
+            </Field>
             <Field label="Notas (opcional)"><textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
           </>
         ) : (
