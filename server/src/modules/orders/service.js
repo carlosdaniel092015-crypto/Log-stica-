@@ -480,15 +480,12 @@ async function changeStatus(orderId, to, req, extra = {}) {
     throw badRequest('Asigna un mensajero antes de cambiar a este estado.');
   }
   const settings = await getSettings();
-  if (to === 'delivered' && role === 'courier' && settings.proof_required && !extra.proof?.receiver_name) {
-    throw badRequest('Indica el nombre de quien recibió el pedido.');
-  }
 
   const ts = now();
   let photoPath = null;
   let signaturePath = null;
   if (OUTCOMES.includes(to) && extra.proof) {
-    if (extra.proof.photo && settings.proof_photo_enabled) photoPath = saveDataUrl(extra.proof.photo, orderId, 'photo');
+    if (extra.proof.photo && (settings.proof_photo_enabled || to === 'delivered')) photoPath = saveDataUrl(extra.proof.photo, orderId, 'photo');
     if (extra.proof.signature && settings.proof_signature_enabled) signaturePath = saveDataUrl(extra.proof.signature, orderId, 'signature');
   }
 
@@ -524,7 +521,7 @@ async function changeStatus(orderId, to, req, extra = {}) {
         order_id: orderId,
         courier_id: order.courier_id,
         outcome: to,
-        receiver_name: proof.receiver_name || null,
+        receiver_name: proof.receiver_name || (to === 'delivered' ? order.customer_name : null),
         notes: proof.notes || extra.note || null,
         photo_path: photoPath,
         signature_path: signaturePath,

@@ -100,18 +100,16 @@ test('flujo completo: crear, asignar, en camino, seguimiento público y entrega'
   assert.ok(afterLoc.courier.location, 'el cliente ve la ubicación del mensajero');
   assert.ok(afterLoc.eta.seconds >= 0);
 
-  // Entregado sin nombre de quien recibe → error.
-  assert.equal((await juan.post(`/api/courier/orders/${order.id}/status`).send({ status: 'delivered' })).status, 400);
   const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   const delivered = await juan.post(`/api/courier/orders/${order.id}/status`).send({
     status: 'delivered', lat: 18.5171, lng: -70.0161, accuracy: 8, cash_collected: true,
-    proof: { receiver_name: 'Juana', notes: 'Recibido en la puerta', signature: tinyPng },
+    proof: { notes: 'Recibido en la puerta', signature: tinyPng },
   });
   assert.equal(delivered.status, 200, JSON.stringify(delivered.body));
   const detail = (await admin.get(`/api/orders/${order.id}`)).body;
   assert.equal(detail.status, 'delivered');
   assert.equal(detail.payment_status, 'paid');
-  assert.equal(detail.proofs[0].receiver_name, 'Juana');
+  assert.equal(detail.proofs[0].receiver_name, detail.customer_name, 'se registra el nombre del cliente');
   assert.ok(detail.proofs[0].has_signature);
   assert.ok(detail.delivered_at);
   assert.deepEqual(detail.history.map((h) => h.to_status), ['new', 'assigned', 'en_route', 'arriving', 'delivered']);
